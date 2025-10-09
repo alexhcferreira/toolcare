@@ -132,7 +132,6 @@ STATIC_URL = "static/"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# --- Configuração de Arquivos de Mídia ---
 # URL que será usada para acessar os arquivos no navegador.
 MEDIA_URL = '/media/'
 
