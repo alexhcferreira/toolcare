@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     "toolcare_api",
     "rest_framework",
     "django_cpf_cnpj",
+    'django_extensions', 
 ]
 
 MIDDLEWARE = [
