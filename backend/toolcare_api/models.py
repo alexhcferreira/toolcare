@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django_cpf_cnpj.fields import CPFField
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
@@ -7,6 +8,52 @@ import datetime
 def upload_path_funcionario(instance, filename): return f'funcionarios/{instance.nome}/{filename}'
 def upload_path_ferramenta(instance, filename): return f'ferramentas/{instance.nome}/{filename}'
 numeric_validator = RegexValidator(r'^\d+$', 'Somente números são permitidos.')
+
+class UsuarioManager(BaseUserManager):
+    def create_user(self, cpf, nome, password=None, **extra_fields):
+        if not cpf:
+            raise ValueError('O CPF é obrigatório')
+        
+        extra_fields.pop('is_staff', None)
+
+        user = self.model(cpf=cpf, nome=nome, **extra_fields)
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
+
+    def create_superuser(self, cpf, nome, password=None, **extra_fields):
+        extra_fields.setdefault('is_superuser', True)
+        extra_fields.setdefault('tipo', 'MAXIMO')
+        
+        if extra_fields.get('is_superuser') is not True:
+            raise ValueError('Superuser must have is_superuser=True.')
+
+        return self.create_user(cpf, nome, password, **extra_fields)
+
+class Usuario(AbstractBaseUser, PermissionsMixin):
+    class TipoChoices(models.TextChoices):
+        MAXIMO = 'MAXIMO', 'Máximo'
+        ADMINISTRADOR = 'ADMINISTRADOR', 'Administrador'
+        COORDENADOR = 'COORDENADOR', 'Coordenador'
+
+    cpf = CPFField(unique=True)
+    nome = models.CharField(max_length=255)
+    tipo = models.CharField(max_length=15, choices=TipoChoices.choices)
+    filiais = models.ManyToManyField('Filial', blank=True)
+    ativo = models.BooleanField(default=True)
+
+
+    objects = UsuarioManager()
+
+    USERNAME_FIELD = 'cpf'
+    REQUIRED_FIELDS = ['nome', 'tipo']
+
+    @property
+    def is_staff(self):
+        return True
+
+    def __str__(self):
+        return self.nome
 
 class Filial(models.Model):
     nome = models.CharField(max_length=100, unique=True)

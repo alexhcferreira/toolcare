@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Filial, Deposito, Setor, Cargo, Funcionario, Ferramenta, Emprestimo, Manutencao
+from .models import Filial, Deposito, Setor, Cargo, Funcionario, Ferramenta, Emprestimo, Manutencao, Usuario
 import datetime
 
 class FilialSerializer(serializers.ModelSerializer):
@@ -124,3 +124,40 @@ class ManutencaoSerializer(serializers.ModelSerializer):
         if not self.instance and ferramenta.estado != Ferramenta.EstadoChoices.DISPONIVEL:
             raise serializers.ValidationError(f"A ferramenta '{ferramenta.nome}' não está disponível para manutenção. Estado atual: {ferramenta.get_estado_display()}.")
         return ferramenta
+    
+class UsuarioSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Usuario
+        fields = ['id', 'nome', 'cpf', 'tipo', 'filiais', 'ativo', 'password']
+        extra_kwargs = {
+            'password': {'write_only': True, 'required': True},
+        }
+
+    def create(self, validated_data):
+        filiais_data = validated_data.pop('filiais')
+        
+        user = Usuario.objects.create_user(**validated_data)
+
+        user.filiais.set(filiais_data)
+        
+        return user
+
+    def update(self, instance, validated_data):
+        password = validated_data.pop('password', None)
+        filiais_data = validated_data.pop('filiais', None)
+
+        user = super().update(instance, validated_data)
+
+        if password:
+            user.set_password(password)
+            user.save()
+
+        if filiais_data is not None:
+            user.filiais.set(filiais_data)
+
+        return user
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance:
+            self.fields['password'].required = False

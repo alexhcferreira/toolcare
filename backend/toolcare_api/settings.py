@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "django_cpf_cnpj",
     'django_extensions', 
+    'rest_framework_simplejwt',
 ]
 
 MIDDLEWARE = [
@@ -138,3 +139,15 @@ MEDIA_URL = '/media/'
 
 # Caminho no sistema de arquivos onde os arquivos de mídia serão armazenados.
 MEDIA_ROOT = BASE_DIR / 'media'
+
+AUTH_USER_MODEL = 'toolcare_api.Usuario'
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework.authentication.SessionAuthentication', 
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    )
+}

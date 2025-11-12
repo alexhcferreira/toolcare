@@ -1,9 +1,15 @@
+#urls.py
+
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, include 
 from rest_framework.routers import DefaultRouter
 from django.conf import settings
 from django.conf.urls.static import static
-from .views import FilialViewSet, DepositoViewSet, SetorViewSet, CargoViewSet, FuncionarioViewSet, FerramentaViewSet, EmprestimoViewSet, ManutencaoViewSet
+from .views import FilialViewSet, DepositoViewSet, SetorViewSet, CargoViewSet, FuncionarioViewSet, FerramentaViewSet, EmprestimoViewSet, ManutencaoViewSet, UsuarioViewSet
+from rest_framework_simplejwt.views import (
+    TokenObtainPairView,
+    TokenRefreshView,
+)
 
 router = DefaultRouter()
 router.register(r'filiais', FilialViewSet)
@@ -14,10 +20,18 @@ router.register(r'funcionarios', FuncionarioViewSet)
 router.register(r'ferramentas', FerramentaViewSet)
 router.register(r'emprestimos', EmprestimoViewSet)
 router.register(r'manutencoes', ManutencaoViewSet)
+router.register(r'usuarios', UsuarioViewSet)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include(router.urls)),
+    
+    # para o insomnia/frontend
+    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    
+    #tela de login/logout do DRF
+    path('api-auth/', include('rest_framework.urls', namespace='rest_framework'))
 ]
 
 if settings.DEBUG:

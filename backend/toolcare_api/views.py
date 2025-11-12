@@ -1,6 +1,6 @@
 from rest_framework import viewsets
-from .models import Filial, Deposito, Setor, Cargo, Funcionario, Ferramenta, Emprestimo, Manutencao
-from .serializers import FilialSerializer, DepositoSerializer, SetorSerializer, CargoSerializer, FuncionarioSerializer, FerramentaSerializer, EmprestimoSerializer, ManutencaoSerializer
+from .models import Filial, Deposito, Setor, Cargo, Funcionario, Ferramenta, Emprestimo, Manutencao, Usuario
+from .serializers import FilialSerializer, DepositoSerializer, SetorSerializer, CargoSerializer, FuncionarioSerializer, FerramentaSerializer, EmprestimoSerializer, ManutencaoSerializer, UsuarioSerializer
 
 class FilialViewSet(viewsets.ModelViewSet):
     queryset = Filial.objects.all().order_by('nome')
@@ -33,3 +33,7 @@ class EmprestimoViewSet(viewsets.ModelViewSet):
 class ManutencaoViewSet(viewsets.ModelViewSet):
     queryset = Manutencao.objects.all().order_by('-data_inicio')
     serializer_class = ManutencaoSerializer
+
+class UsuarioViewSet(viewsets.ModelViewSet):
+    queryset = Usuario.objects.all().order_by('nome')
+    serializer_class = UsuarioSerializer
