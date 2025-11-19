@@ -129,35 +129,49 @@ class UsuarioSerializer(serializers.ModelSerializer):
     class Meta:
         model = Usuario
         fields = ['id', 'nome', 'cpf', 'tipo', 'filiais', 'ativo', 'password']
-        extra_kwargs = {
-            'password': {'write_only': True, 'required': True},
-        }
+        extra_kwargs = { 'password': {'write_only': True} }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        request_user = self.context['request'].user
+        
+        if self.instance:
+            self.fields['password'].required = False
+            
+            # Regra para COORDENADOR ou ADMIN editando a si mesmo
+            if request_user.tipo in ['COORDENADOR', 'ADMINISTRADOR'] and self.instance == request_user:
+                for field_name in self.fields:
+                    if field_name != 'password':
+                        self.fields[field_name].read_only = True
+            
+            elif request_user.tipo == 'ADMINISTRADOR' and self.instance.tipo == 'COORDENADOR':
+                self.fields['cpf'].read_only = True
+                self.fields['tipo'].read_only = True
+
+    def validate(self, data):
+        request_user = self.context['request'].user
+        
+        # CORREÇÃO AQUI: Esta validação só roda na CRIAÇÃO (quando self.instance é None)
+        if not self.instance and request_user.tipo == 'ADMINISTRADOR' and data.get('tipo') != 'COORDENADOR':
+            raise serializers.ValidationError({"tipo": "Administradores só podem criar usuários do tipo Coordenador."})
+
+        return data
 
     def create(self, validated_data):
-        filiais_data = validated_data.pop('filiais')
-        
+        filiais_data = validated_data.pop('filiais', [])
         user = Usuario.objects.create_user(**validated_data)
-
-        user.filiais.set(filiais_data)
-        
+        if filiais_data:
+            user.filiais.set(filiais_data)
         return user
 
     def update(self, instance, validated_data):
         password = validated_data.pop('password', None)
         filiais_data = validated_data.pop('filiais', None)
-
         user = super().update(instance, validated_data)
-
         if password:
             user.set_password(password)
             user.save()
-
         if filiais_data is not None:
             user.filiais.set(filiais_data)
-
         return user
-    
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        if self.instance:
-            self.fields['password'].required = False
