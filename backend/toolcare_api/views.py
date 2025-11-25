@@ -41,6 +41,7 @@ class CargoViewSet(viewsets.ModelViewSet):
     serializer_class = CargoSerializer
     permission_classes = [IsAuthenticated, IsAdminOrMaximo|ReadOnly]
 
+
 class FuncionarioViewSet(viewsets.ModelViewSet):
     serializer_class = FuncionarioSerializer
     permission_classes = [IsAuthenticated]
@@ -53,6 +54,16 @@ class FuncionarioViewSet(viewsets.ModelViewSet):
             return Funcionario.objects.filter(filiais__in=user.filiais.all()).distinct().order_by('nome')
         return Funcionario.objects.all().order_by('nome')
     
+    def get_serializer_context(self):
+        """
+        Envia contexto extra para o serializer.
+        """
+        context = super().get_serializer_context()
+        user = self.request.user
+        if user.is_authenticated and user.tipo == 'COORDENADOR':
+            context['filial_queryset'] = user.filiais.all()
+        return context
+
     def get_permissions(self):
         if self.action == 'destroy':
             return [IsAdminOrMaximo()]
@@ -75,6 +86,7 @@ class FerramentaViewSet(viewsets.ModelViewSet):
             return Ferramenta.objects.filter(deposito__filial__in=user.filiais.all()).order_by('nome')
         return Ferramenta.objects.all().order_by('nome')
 
+
 class EmprestimoViewSet(viewsets.ModelViewSet):
     serializer_class = EmprestimoSerializer
     permission_classes = [IsAuthenticated]
@@ -83,12 +95,21 @@ class EmprestimoViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         if user.tipo == 'COORDENADOR':
-            # Empréstimos podem ter sido desassociados, então filtramos pelo histórico também
             emprestimos_ativos = Emprestimo.objects.filter(ferramenta__deposito__filial__in=user.filiais.all())
-            # A lógica para empréstimos inativos pode ser mais complexa se o histórico for necessário
-            # Por enquanto, focamos nos ativos.
             return emprestimos_ativos.order_by('-data_emprestimo')
         return Emprestimo.objects.all().order_by('-data_emprestimo')
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        user = self.request.user
+        
+        ferramenta_queryset = Ferramenta.objects.filter(estado=Ferramenta.EstadoChoices.DISPONIVEL)
+        
+        if user.is_authenticated and user.tipo == 'COORDENADOR':
+            ferramenta_queryset = ferramenta_queryset.filter(deposito__filial__in=user.filiais.all())
+        
+        context['ferramenta_queryset'] = ferramenta_queryset
+        return context
 
 class ManutencaoViewSet(viewsets.ModelViewSet):
     serializer_class = ManutencaoSerializer
@@ -101,3 +122,15 @@ class ManutencaoViewSet(viewsets.ModelViewSet):
             manutencoes_ativas = Manutencao.objects.filter(ferramenta__deposito__filial__in=user.filiais.all())
             return manutencoes_ativas.order_by('-data_inicio')
         return Manutencao.objects.all().order_by('-data_inicio')
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        user = self.request.user
+        
+        ferramenta_queryset = Ferramenta.objects.filter(estado=Ferramenta.EstadoChoices.DISPONIVEL)
+        
+        if user.is_authenticated and user.tipo == 'COORDENADOR':
+            ferramenta_queryset = ferramenta_queryset.filter(deposito__filial__in=user.filiais.all())
+
+        context['ferramenta_queryset'] = ferramenta_queryset
+        return context

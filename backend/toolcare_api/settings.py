@@ -151,3 +151,5 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.IsAuthenticated',
     )
 }
+
+CSRF_TRUSTED_ORIGINS = ['https://55e7ef14844c.ngrok-free.app']
