@@ -1,0 +1,45 @@
+.successMessage {
+    background-color: #F46524;
+    color: white;
+    font: normal 300 1.2rem 'Lato', sans-serif;
+    width: 90%;           
+    max-width: 320px;     
+    max-height: 20px;
+    
+    
+    padding: 1rem;        
+    border-radius: 0.5rem;
+    
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;  
+    
+    position: fixed;
+    top: 2rem;            
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 100;        
+    
+    opacity: 0;
+    animation: fadeInOut 2s normal; 
+}
+
+@keyframes fadeInOut {
+    0% {
+        opacity: 0;
+        top: 0; 
+    }
+    15% {
+        opacity: 1;
+        top: 2rem;
+    }
+    85% {
+        opacity: 1;
+        top: 2rem;
+    }
+    100% {
+        opacity: 0;
+        top: 0; 
+    }
+}

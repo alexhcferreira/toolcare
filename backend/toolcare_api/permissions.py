@@ -1,4 +1,3 @@
-
 from rest_framework import permissions
 
 class IsMaximoUser(permissions.BasePermission):
@@ -18,6 +17,7 @@ class UsuarioPermissions(permissions.BasePermission):
     Regras de permissão específicas para o endpoint de Usuários.
     """
     def has_permission(self, request, view):
+        
         if view.action == 'list':
             return request.user.tipo == 'MAXIMO'
         

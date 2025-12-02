@@ -41,7 +41,6 @@ class CargoViewSet(viewsets.ModelViewSet):
     serializer_class = CargoSerializer
     permission_classes = [IsAuthenticated, IsAdminOrMaximo|ReadOnly]
 
-
 class FuncionarioViewSet(viewsets.ModelViewSet):
     serializer_class = FuncionarioSerializer
     permission_classes = [IsAuthenticated]
@@ -55,9 +54,6 @@ class FuncionarioViewSet(viewsets.ModelViewSet):
         return Funcionario.objects.all().order_by('nome')
     
     def get_serializer_context(self):
-        """
-        Envia contexto extra para o serializer.
-        """
         context = super().get_serializer_context()
         user = self.request.user
         if user.is_authenticated and user.tipo == 'COORDENADOR':
@@ -86,7 +82,6 @@ class FerramentaViewSet(viewsets.ModelViewSet):
             return Ferramenta.objects.filter(deposito__filial__in=user.filiais.all()).order_by('nome')
         return Ferramenta.objects.all().order_by('nome')
 
-
 class EmprestimoViewSet(viewsets.ModelViewSet):
     serializer_class = EmprestimoSerializer
     permission_classes = [IsAuthenticated]
@@ -102,12 +97,9 @@ class EmprestimoViewSet(viewsets.ModelViewSet):
     def get_serializer_context(self):
         context = super().get_serializer_context()
         user = self.request.user
-        
         ferramenta_queryset = Ferramenta.objects.filter(estado=Ferramenta.EstadoChoices.DISPONIVEL)
-        
         if user.is_authenticated and user.tipo == 'COORDENADOR':
             ferramenta_queryset = ferramenta_queryset.filter(deposito__filial__in=user.filiais.all())
-        
         context['ferramenta_queryset'] = ferramenta_queryset
         return context
 
@@ -126,11 +118,8 @@ class ManutencaoViewSet(viewsets.ModelViewSet):
     def get_serializer_context(self):
         context = super().get_serializer_context()
         user = self.request.user
-        
         ferramenta_queryset = Ferramenta.objects.filter(estado=Ferramenta.EstadoChoices.DISPONIVEL)
-        
         if user.is_authenticated and user.tipo == 'COORDENADOR':
             ferramenta_queryset = ferramenta_queryset.filter(deposito__filial__in=user.filiais.all())
-
         context['ferramenta_queryset'] = ferramenta_queryset
         return context

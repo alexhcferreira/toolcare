@@ -6,30 +6,39 @@ class UsuarioSerializer(serializers.ModelSerializer):
     class Meta:
         model = Usuario
         fields = ['id', 'nome', 'cpf', 'tipo', 'filiais', 'ativo', 'password']
-        extra_kwargs = { 'password': {'write_only': True} }
+        extra_kwargs = {
+            'password': {'write_only': True}
+        }
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         request_user = self.context['request'].user
+        
         if self.instance:
             self.fields['password'].required = False
+            
             if request_user.tipo in ['COORDENADOR', 'ADMINISTRADOR'] and self.instance == request_user:
                 for field_name in self.fields:
                     if field_name != 'password':
                         self.fields[field_name].read_only = True
+            
             elif request_user.tipo == 'ADMINISTRADOR' and self.instance.tipo == 'COORDENADOR':
                 self.fields['cpf'].read_only = True
                 self.fields['tipo'].read_only = True
+
     def validate(self, data):
         request_user = self.context['request'].user
         if not self.instance and request_user.tipo == 'ADMINISTRADOR' and data.get('tipo') != 'COORDENADOR':
             raise serializers.ValidationError({"tipo": "Administradores só podem criar usuários do tipo Coordenador."})
         return data
+
     def create(self, validated_data):
         filiais_data = validated_data.pop('filiais', [])
         user = Usuario.objects.create_user(**validated_data)
         if filiais_data:
             user.filiais.set(filiais_data)
         return user
+
     def update(self, instance, validated_data):
         password = validated_data.pop('password', None)
         filiais_data = validated_data.pop('filiais', None)
@@ -86,11 +95,12 @@ class CargoSerializer(serializers.ModelSerializer):
         if query.exists(): raise serializers.ValidationError("Já existe um cargo com este nome.")
         return value
 
-
 class FuncionarioSerializer(serializers.ModelSerializer):
     filiais_detalhes = FilialSerializer(source='filiais', many=True, read_only=True)
     setor_nome = serializers.CharField(source='setor.nome_setor', read_only=True)
     cargo_nome = serializers.CharField(source='cargo.nome_cargo', read_only=True)
+    
+    filiais = serializers.PrimaryKeyRelatedField(queryset=Filial.objects.all(), many=True)
 
     class Meta:
         model = Funcionario
@@ -99,16 +109,14 @@ class FuncionarioSerializer(serializers.ModelSerializer):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        user = self.context['request'].user
         
         if self.instance: 
-            self.fields['nome'].read_only = True
-            self.fields['matricula'].read_only = True
-            self.fields['cpf'].read_only = True
+            self.fields['nome'].read_only = True; self.fields['matricula'].read_only = True; self.fields['cpf'].read_only = True
         else: 
             self.fields['ativo'].read_only = True
         
         filial_queryset = self.context.get('filial_queryset')
-        
         if filial_queryset is not None:
             self.fields['filiais'].queryset = filial_queryset
 
@@ -122,7 +130,6 @@ class FuncionarioSerializer(serializers.ModelSerializer):
             for filial in filiais_selecionadas:
                 if filial.id not in user_filiais_ids:
                     raise serializers.ValidationError(f"Coordenadores só podem associar funcionários às suas próprias filiais. A filial '{filial.nome}' é inválida.")
-        
         return filiais_selecionadas
 
 class FerramentaSerializer(serializers.ModelSerializer):
@@ -137,7 +144,6 @@ class FerramentaSerializer(serializers.ModelSerializer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         user = self.context['request'].user
-
         if self.instance: 
             self.fields['nome'].read_only = True; self.fields['numero_serie'].read_only = True; self.fields['data_aquisicao'].read_only = True
         
@@ -171,9 +177,7 @@ class EmprestimoSerializer(serializers.ModelSerializer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if self.instance: 
-            self.fields['ferramenta'].read_only = True
-            self.fields['funcionario'].read_only = True
-            self.fields['data_emprestimo'].read_only = True
+            self.fields['ferramenta'].read_only = True; self.fields['funcionario'].read_only = True; self.fields['data_emprestimo'].read_only = True
         else: 
             self.fields['ativo'].read_only = True
 
@@ -190,7 +194,6 @@ class EmprestimoSerializer(serializers.ModelSerializer):
             
             filial_da_ferramenta = ferramenta.deposito.filial
             filiais_do_funcionario = funcionario.filiais.all()
-            
             if filial_da_ferramenta not in filiais_do_funcionario: 
                 raise serializers.ValidationError({"funcionario": f"O funcionário {funcionario.nome} não pertence à filial '{filial_da_ferramenta.nome}'."})
 

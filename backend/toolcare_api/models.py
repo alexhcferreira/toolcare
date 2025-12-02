@@ -9,6 +9,7 @@ def upload_path_funcionario(instance, filename): return f'funcionarios/{instance
 def upload_path_ferramenta(instance, filename): return f'ferramentas/{instance.nome}/{filename}'
 numeric_validator = RegexValidator(r'^\d+$', 'Somente números são permitidos.')
 
+
 class UsuarioManager(BaseUserManager):
     def create_user(self, cpf, nome, password=None, **extra_fields):
         if not cpf:
@@ -41,7 +42,6 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
     tipo = models.CharField(max_length=15, choices=TipoChoices.choices)
     filiais = models.ManyToManyField('Filial', blank=True)
     ativo = models.BooleanField(default=True)
-
 
     objects = UsuarioManager()
 
@@ -106,10 +106,12 @@ class Funcionario(models.Model):
     foto = models.ImageField(upload_to=upload_path_funcionario, blank=True, default='defaults/default_avatar.png')
     ativo = models.BooleanField(default=True)
     def __str__(self): return self.nome
+    
     def clean(self):
         if not self.ativo:
             emprestimos_ativos = Emprestimo.objects.filter(funcionario=self, ativo=True).exists()
             if emprestimos_ativos: raise ValidationError("Não é possível inativar o funcionário enquanto houver empréstimos ativos.")
+    
     def save(self, *args, **kwargs):
         self.full_clean()
         super().save(*args, **kwargs)
@@ -126,14 +128,17 @@ class Emprestimo(models.Model):
     numero_serie_ferramenta_historico = models.CharField(max_length=50, blank=True, null=True)
     nome_funcionario_historico = models.CharField(max_length=100, blank=True, null=True)
     matricula_funcionario_historico = models.CharField(max_length=50, blank=True, null=True)
+    
     def __str__(self):
         return self.nome or f"Empréstimo {self.id}"
+    
     def save(self, *args, **kwargs):
         is_new = self.pk is None
         if is_new and self.ativo: 
             if self.ferramenta:
                 self.ferramenta.estado = Ferramenta.EstadoChoices.EMPRESTADA
                 self.ferramenta.save()
+        
         if not self.ativo:
             if self.ferramenta:
                 self.nome_ferramenta_historico = self.ferramenta.nome
@@ -182,6 +187,7 @@ class Manutencao(models.Model):
             if self.ferramenta:
                 self.ferramenta.estado = Ferramenta.EstadoChoices.EM_MANUTENCAO
                 self.ferramenta.save()
+
         if not self.ativo:
             if self.ferramenta:
                 self.nome_ferramenta_historico = self.ferramenta.nome
