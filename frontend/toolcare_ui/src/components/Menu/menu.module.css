@@ -1,0 +1,87 @@
+#menu_div {
+    width: 25rem;
+    background-color: #ffffff;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 0;
+}
+
+a {
+    text-decoration: none;
+}
+
+#menu_nav {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+#menu_ul {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+    flex: 1;
+}
+
+.div_navbar {
+    display: flex;
+    align-items: center;
+    border-bottom: 0.1rem solid #000000;
+    cursor: pointer;
+    background-color: white;
+    color: black;
+}
+
+.div_navbar:hover {
+    background-color: #fafafa;
+}
+
+.selected {
+    background-color: #f46524 !important;
+    color: white !important;
+}
+
+.quadradinho {
+    width: 6.5rem;
+    height: 6.5rem;
+    margin-right: 1.5rem;
+}
+
+.texto_menu {
+    font: normal 500 1.7rem 'Lato';
+    color: #333;
+}
+
+#logout_container,#inativos_container {
+    padding: 15rem 20rem;
+    text-align: center;
+}
+
+.div_inativos {
+    border-top: 0.1rem solid #000000;
+}
+
+#logout,#inativos {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#logout:hover,#inativos:hover {
+    background-color: #e0e0e0;
+}
+
+.quadradinho_logout,.quadradinho_inativos {
+    width: 6.5rem;
+    height: 6.5rem;
+    margin-right: 1.5rem;
+}
+
+#texto_logout,#texto_inativos {
+    font-size: 1.6rem;
+    color: #333;
+}

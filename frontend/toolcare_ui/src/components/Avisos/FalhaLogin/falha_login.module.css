@@ -1,45 +1,33 @@
 .successMessage {
     background-color: #F46524;
     color: white;
-    font: normal 300 1.2rem 'Lato', sans-serif;
-    width: 90%;           
-    max-width: 320px;     
-    max-height: 20px;
+    /* Ajustado para 1.4rem (14px) */
+    font: normal 400 1.4rem 'Lato', sans-serif;
     
+    width: 90%;
+    max-width: 32rem; /* 320px */
     
-    padding: 1rem;        
+    padding: 1.5rem; /* 15px */
     border-radius: 0.5rem;
     
     display: flex;
     align-items: center;
     justify-content: center;
-    text-align: center;  
+    text-align: center;
     
     position: fixed;
-    top: 2rem;            
+    top: 2rem;
     left: 50%;
     transform: translateX(-50%);
-    z-index: 100;        
+    z-index: 100;
     
     opacity: 0;
-    animation: fadeInOut 2s normal; 
+    animation: fadeInOut 2.5s forwards;
 }
 
 @keyframes fadeInOut {
-    0% {
-        opacity: 0;
-        top: 0; 
-    }
-    15% {
-        opacity: 1;
-        top: 2rem;
-    }
-    85% {
-        opacity: 1;
-        top: 2rem;
-    }
-    100% {
-        opacity: 0;
-        top: 0; 
-    }
+    0% { opacity: 0; top: 0; }
+    15% { opacity: 1; top: 2rem; }
+    85% { opacity: 1; top: 2rem; }
+    100% { opacity: 0; top: 0; }
 }
