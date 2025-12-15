@@ -28,10 +28,31 @@ export const MenuComponent = () => {
     const [selectedItem, setSelectedItem] = useState('');
 
     useEffect(() => {
-        // Lógica para manter o item selecionado baseado na URL atual
+        // 1. Pega a rota atual (ex: 'cargo_cadastro' ou 'cargos')
         const currentPath = location.pathname.split('/')[1];
-        if (currentPath) {
-            setSelectedItem(currentPath);
+
+        // 2. Define quais "sub-rotas" pertencem a qual "menu principal"
+        const routeMapping = {
+            // Quando estiver em...  : Acenda o botão...
+            'cargo_cadastro': 'cargos',
+            
+            // Já deixando preparado para os próximos:
+            'ferramenta_cadastro': 'ferramentas',
+            'funcionario_cadastro': 'funcionarios',
+            'emprestimo_cadastro': 'emprestimos',
+            'manutencao_cadastro': 'manutencoes',
+            'setor_cadastro': 'setores',
+            'deposito_cadastro': 'depositos',
+            'usuario_cadastro': 'usuarios',
+            'filial_cadastro': 'filiais'
+        };
+
+        // 3. Verifica: Se a rota atual estiver no mapa, usa o pai. Se não, usa ela mesma.
+        const activeItem = routeMapping[currentPath] || currentPath;
+
+        if (activeItem) {
+            setSelectedItem(activeItem);
+            localStorage.setItem('selectedItem', activeItem);
         } else {
             setSelectedItem('visao_geral');
         }

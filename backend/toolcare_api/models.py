@@ -172,6 +172,7 @@ class Manutencao(models.Model):
     nome = models.CharField(max_length=50, blank=True, null=True, unique=True)
     tipo = models.CharField(max_length=15, choices=TipoChoices.choices)
     ferramenta = models.ForeignKey(Ferramenta, on_delete=models.SET_NULL, null=True, blank=True)
+    observacoes = models.TextField(blank=True, null=True) 
     data_inicio = models.DateField(default=datetime.date.today)
     data_fim = models.DateField(null=True, blank=True)
     ativo = models.BooleanField(default=True)

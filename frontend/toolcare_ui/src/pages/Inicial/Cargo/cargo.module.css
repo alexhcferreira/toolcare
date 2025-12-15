@@ -1,0 +1,68 @@
+.container {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 4rem;
+    /* Garante que o conteúdo fique ATRÁS do menu se houver sobreposição acidental */
+    z-index: 1; 
+}
+
+/* O botão + */
+.addButton {
+    color: white;
+    font-size: 5rem;
+    position: absolute;
+    top: 2.6rem;
+    right: 4rem;
+    cursor: pointer;
+    text-decoration: none;
+    line-height: 1;
+    font-family: 'Lato', sans-serif;
+    font-weight: 300;
+}
+
+.addButton:hover {
+    transform: scale(1.1);
+}
+
+/* A barra branca */
+.searchBarContainer {
+    width: 40%;
+    min-width: 300px;
+    /* Reduzi de 4.5rem para 3.5rem (Mais fina) */
+    height: 2.85rem; 
+    margin-right: -25rem;
+    background-color: white;
+    border-radius: 4rem;
+    display: flex;
+    align-items: center;
+    padding: 0 1.5rem;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.searchInput {
+    border: none;
+    flex: 1;
+    height: 100%;
+    color: #333;
+    font-size: 1.6rem;
+    font-family: 'Lato', sans-serif;
+    background: transparent;
+    /* REMOVIDO O OUTLINE LARANJA */
+    outline: none; 
+}
+
+/* Garante que não tenha borda nem quando clica */
+.searchInput:focus {
+    outline: none;
+    box-shadow: none;
+}
+
+.contentArea {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+}

@@ -210,7 +210,7 @@ class ManutencaoSerializer(serializers.ModelSerializer):
     ferramenta_numero_serie = serializers.SerializerMethodField()
     class Meta:
         model = Manutencao
-        fields = ['id', 'nome', 'tipo', 'ferramenta', 'ferramenta_nome', 'ferramenta_numero_serie', 'data_inicio', 'data_fim', 'ativo']
+        fields = ['id', 'nome', 'tipo', 'ferramenta', 'ferramenta_nome', 'ferramenta_numero_serie', 'observacoes', 'data_inicio', 'data_fim', 'ativo']
         read_only_fields = ['id', 'nome']
     
     def get_ferramenta_nome(self, obj):

@@ -1,0 +1,110 @@
+.container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+    background-color: #2c2c2c;
+    position: relative;
+    padding: 2rem;
+    box-sizing: border-box; 
+}
+
+#voltar {
+    color: white;
+    font-size: 4rem;
+    position: absolute;
+    top: 2rem;
+    left: 2rem;
+    cursor: pointer;
+    z-index: 10;
+    line-height: 1;
+}
+
+.tela {
+    background-color: #444444;
+    padding: 4rem;
+    border-radius: 4rem;
+    box-shadow: 0 0 50px 5px rgba(0, 0, 0, 0.2);
+    
+    /* Responsividade "espremer" */
+    width: min(85%, 50rem); 
+    min-width: 25rem; 
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: auto; 
+}
+
+#cadastro_deposito_form {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+#cadastro {
+    font-size: 3rem;
+    color: white;
+    margin-bottom: 2rem;
+    text-align: center;
+    font-family: 'Lato', sans-serif;
+    font-weight: 500;
+}
+
+/* Estilo unificado para Input e Select */
+input[type="text"], 
+.selectInput {
+    width: 100%;
+    padding: 1.5rem;
+    border: none;
+    border-radius: 0.5rem;
+    background-color: #353535;
+    color: white;
+    font-size: 1.6rem;
+    outline: 0;
+    font-family: 'Lato', sans-serif;
+    margin-bottom: 0;
+}
+
+/* Ajuste específico para o select (seta) */
+.selectInput {
+    cursor: pointer;
+    appearance: none; /* Remove estilo padrão do navegador */
+    background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23FFFFFF%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+    background-repeat: no-repeat;
+    background-position: right 1.5rem top 50%;
+    background-size: 1.2rem auto;
+}
+
+input:focus,
+.selectInput:focus {
+    outline: 2px solid #f46524;
+}
+
+input::placeholder {
+    color: rgba(255, 255, 255, 0.7);
+    font-weight: 500;
+}
+
+button {
+    width: 100%;
+    padding: 1.5rem;
+    border: none;
+    border-radius: 0.5rem;
+    background-color: #e1e1e1;
+    color: #353535;
+    font-size: 1.8rem;
+    cursor: pointer;
+    font-weight: 700;
+    font-family: 'Lato', sans-serif;
+    margin-top: 1rem;
+    transition: all 0.2s;
+}
+
+button:hover {
+    background-color: #aaa;
+    transform: translateY(-2px);
+}

@@ -1,0 +1,145 @@
+.container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+    background-color: #2c2c2c;
+    position: relative;
+    padding: 2rem;
+    box-sizing: border-box; 
+    overflow-y: auto;
+}
+
+#voltar {
+    color: white;
+    font-size: 4rem;
+    position: absolute;
+    top: 2rem;
+    left: 2rem;
+    cursor: pointer;
+    z-index: 10;
+    line-height: 1;
+}
+
+.tela {
+    background-color: #444444;
+    padding: 4rem;
+    border-radius: 4rem;
+    box-shadow: 0 0 50px 5px rgba(0, 0, 0, 0.2);
+    
+    width: min(85%, 50rem); 
+    min-width: 25rem; 
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: auto; 
+}
+
+#cadastro_manutencao_form {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+#cadastro {
+    font-size: 3rem;
+    color: white;
+    margin-bottom: 2rem;
+    text-align: center;
+    font-family: 'Lato', sans-serif;
+    font-weight: 500;
+}
+
+/* Inputs, Selects e Data */
+input[type="text"], 
+input[type="date"],
+.selectInput {
+    width: 100%;
+    padding: 1.5rem;
+    border: none;
+    border-radius: 0.5rem;
+    background-color: #353535;
+    color: white;
+    font-size: 1.6rem;
+    outline: 0;
+    font-family: 'Lato', sans-serif;
+    margin-bottom: 0;
+}
+
+/* Legenda da Data */
+.inputLabel {
+    width: 100%;
+    text-align: left;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 1.3rem;
+    font-family: 'Lato', sans-serif;
+    font-weight: 400;
+    margin-bottom: -1rem; 
+    margin-top: 0.5rem;
+    padding-left: 0.2rem;
+}
+
+/* Ajuste do ícone de data */
+input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    cursor: pointer;
+    opacity: 0.7;
+}
+
+/* Placeholders */
+input::placeholder,
+.dateInput::placeholder {
+    color: rgba(255, 255, 255, 0.7);
+    font-weight: 500;
+}
+
+/* Focus state */
+input:focus,
+.selectInput:focus {
+    outline: 2px solid #f46524;
+}
+
+button {
+    width: 100%;
+    padding: 1.5rem;
+    border: none;
+    border-radius: 0.5rem;
+    background-color: #e1e1e1;
+    color: #353535;
+    font-size: 1.8rem;
+    cursor: pointer;
+    font-weight: 700;
+    font-family: 'Lato', sans-serif;
+    margin-top: 1rem;
+    transition: all 0.2s;
+}
+
+button:hover {
+    background-color: #aaa;
+    transform: translateY(-2px);
+}
+
+.textArea {
+    width: 100%;
+    padding: 1.5rem;
+    border: none;
+    border-radius: 0.5rem;
+    background-color: #353535;
+    color: white;
+    font-size: 1.6rem;
+    outline: 0;
+    font-family: 'Lato', sans-serif;
+    margin-bottom: 0;
+    resize: none;
+}
+.textArea:focus {
+    outline: 2px solid #f46524;
+}
+.textArea::placeholder {
+    color: rgba(255, 255, 255, 0.7);
+    font-weight: 500;
+}
