@@ -85,3 +85,82 @@ a {
     font-size: 1.6rem;
     color: #333;
 }
+
+/* ... todo o seu css anterior ... */
+
+
+/* === MODO COMPACTO (Para telas menores que 1400px) === */
+@media (max-width: 1400px) {
+    
+    /* Ajusta a largura do container principal do menu */
+    #menu_div, #menu_nav {
+        width: 19rem !important; /* Tem que bater com o valor do Layout.module.css */
+    }
+
+    /* Diminui a altura e espaçamento dos botões */
+    .div_navbar {
+        height: 4.5rem; /* Botões mais baixos */
+        padding-left: 1.5rem; /* Menos margem na esquerda */
+    }
+
+    /* Diminui o ícone */
+    .quadradinho, .quadradinho_inativos, .quadradinho_logout {
+        width: 2rem; 
+        height: 2rem;
+        margin-right: 1rem; /* Aproxima o texto do ícone */
+    }
+
+    /* Diminui a fonte do texto */
+    .texto_menu {
+        font-size: 1.3rem; /* Fonte menor */
+    }
+    
+    /* Ajuste específico para o botão de Sair e Inativos se necessário */
+    .div_inativos, .div_logout {
+        /* Ajuste a posição se estiverem absolutos */
+        width: 100%;
+    }
+
+    /* === MODO COMPACTO (Para telas menores que 1400px) === */
+@media (max-width: 1400px) {
+    
+    /* 1. Ajusta a largura do container para bater com o Layout */
+    #menu_div, #menu_nav {
+        width: 14rem !important; 
+    }
+
+    /* 2. Botões mais compactos, mas aproveitando o espaço lateral */
+    .div_navbar {
+        height: 4.5rem; 
+        padding-left: 0.1rem; /* Reduzi muito a margem esquerda para caber tudo */
+        padding-right: 0.2rem;
+        display: flex;
+        align-items: center; /* Centraliza verticalmente */
+        justify-content: flex-start; /* Alinha tudo à esquerda */
+    }
+
+    /* 3. ÍCONES GRANDES (Ocupando espaço) */
+    .quadradinho, .quadradinho_inativos, .quadradinho_logout {
+        /* Aumentei de volta para 3.2rem (antes estava 2rem) */
+        width: 4rem; 
+        height: 4.2rem;
+        /* Margem pequena só para desgrudar do texto */
+        margin-right: 0.5rem; 
+        /* Garante que a imagem preencha o quadrado */
+    }
+
+    /* 4. Texto menor para não quebrar linha */
+    .texto_menu {
+        font-size: 1.1rem; /* Fonte um pouco menor */
+        white-space: nowrap; /* Impede que o texto quebre para a linha de baixo */
+        overflow: hidden;    /* Se sobrar texto, esconde */
+        text-overflow: ellipsis; /* Coloca '...' se for muito grande */
+    }
+    
+    /* Ajuste para os botões do rodapé (Sair/Inativos) */
+    .div_inativos, .div_logout {
+        width: 100%;
+    }
+}
+
+}

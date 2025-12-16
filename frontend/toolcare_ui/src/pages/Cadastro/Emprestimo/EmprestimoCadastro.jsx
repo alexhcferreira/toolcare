@@ -5,24 +5,26 @@ import api from '../../../services/api';
 import CadastradoComponent from '../../../components/Avisos/Cadastrado/Cadastrado';
 import FalhaCadastroComponent from '../../../components/Avisos/FalhaCadastro/FalhaCadastro';
 
+// 1. IMPORTAR O REACT-SELECT E OS ESTILOS
+import Select from 'react-select';
+import { customSelectStyles } from '../../../components/CustomSelect/selectStyles';
+
 const EmprestimoCadastro = () => {
+    const hoje = new Date().toISOString().split('T')[0];
+
     const [formData, setFormData] = useState({
-        ferramenta: '',
-        funcionario: '',
-        data_emprestimo: new Date().toISOString().split('T')[0], // Já inicia com a data de hoje
+        ferramenta: null, // Agora guardamos o objeto {value, label} ou null
+        funcionario: null,
+        data_emprestimo: hoje, 
         observacoes: ''
     });
 
-    // Listas completas vindas da API
-    const [ferramentas, setFerramentas] = useState([]);
-    const [todosFuncionarios, setTodosFuncionarios] = useState([]);
+    const [ferramentasOptions, setFerramentasOptions] = useState([]);
+    const [todosFuncionarios, setTodosFuncionarios] = useState([]); // Dados brutos
+    const [funcionariosOptions, setFuncionariosOptions] = useState([]); // Opções formatadas para o select
     
-    // Lista filtrada que será exibida no select
-    const [funcionariosFiltrados, setFuncionariosFiltrados] = useState([]);
-    
-    // Controle visual
     const [isFuncionarioDisabled, setIsFuncionarioDisabled] = useState(true);
-    const [inputType, setInputType] = useState('text'); // Para o truque da data
+    const [inputType, setInputType] = useState('text');
 
     const [showSuccess, setShowSuccess] = useState(false);
     const [showError, setShowError] = useState(false);
@@ -31,19 +33,25 @@ const EmprestimoCadastro = () => {
     useEffect(() => {
         const loadDados = async () => {
             try {
-                // Carrega ferramentas disponíveis e todos os funcionários
-                // O backend já deve mandar apenas ferramentas com estado='DISPONIVEL' se configurado,
-                // mas caso contrário, filtramos aqui também por segurança.
                 const [ferramentasRes, funcionariosRes] = await Promise.all([
                     api.get('/api/ferramentas/'),
                     api.get('/api/funcionarios/')
                 ]);
 
-                // Garante que só mostramos ferramentas disponíveis
-                const ferramentasDisponiveis = ferramentasRes.data.filter(f => f.estado === 'DISPONIVEL');
-                setFerramentas(ferramentasDisponiveis);
+                // 2. CONVERTER DADOS DA API PARA O FORMATO DO REACT-SELECT
+                // Formato exigido: { value: ID, label: "O QUE APARECE NA TELA", ...outrosDados }
                 
-                setTodosFuncionarios(funcionariosRes.data);
+                const ferramentasFormatadas = ferramentasRes.data
+                    .filter(f => f.estado === 'DISPONIVEL')
+                    .map(f => ({
+                        value: f.id,
+                        label: `${f.nome} - ${f.numero_serie}`,
+                        filial_nome: f.filial_nome // Guardamos a filial aqui pra usar no filtro
+                    }));
+                
+                setFerramentasOptions(ferramentasFormatadas);
+                setTodosFuncionarios(funcionariosRes.data); // Guarda cru para filtrar depois
+                
             } catch (error) {
                 console.error("Erro ao carregar dados:", error);
             }
@@ -51,31 +59,33 @@ const EmprestimoCadastro = () => {
         loadDados();
     }, []);
 
-    // FUNÇÃO ESPECIAL: Quando seleciona a ferramenta
-    const handleFerramentaChange = (event) => {
-        const ferramentaId = event.target.value;
+    // 3. LÓGICA DE FILTRO ATUALIZADA PARA O NOVO SELECT
+    const handleFerramentaChange = (selectedOption) => {
+        // selectedOption é o objeto { value: 1, label: "Alicate...", filial_nome: "Usina SP" }
         
-        // 1. Atualiza o form
-        setFormData({ ...formData, ferramenta: ferramentaId, funcionario: '' }); // Reseta o funcionário
+        setFormData({ ...formData, ferramenta: selectedOption, funcionario: null }); // Reseta funcionario
         
-        // 2. Acha o objeto da ferramenta selecionada para descobrir a filial
-        const ferramentaSelecionada = ferramentas.find(f => f.id.toString() === ferramentaId);
+        if (selectedOption) {
+            const nomeFilialFerramenta = selectedOption.filial_nome;
 
-        if (ferramentaSelecionada) {
-            const nomeFilialFerramenta = ferramentaSelecionada.filial_nome;
+            // Filtra os funcionários brutos e converte para o formato do select
+            const filtrados = todosFuncionarios
+                .filter(func => func.filiais_detalhes.some(filial => filial.nome === nomeFilialFerramenta))
+                .map(func => ({
+                    value: func.id,
+                    label: `${func.nome} (${func.matricula})`
+                }));
 
-            // 3. Filtra os funcionários:
-            // Só passa quem tiver a filial da ferramenta na sua lista de 'filiais_detalhes'
-            const filtrados = todosFuncionarios.filter(func => 
-                func.filiais_detalhes.some(filial => filial.nome === nomeFilialFerramenta)
-            );
-
-            setFuncionariosFiltrados(filtrados);
-            setIsFuncionarioDisabled(false); // Habilita o campo
+            setFuncionariosOptions(filtrados);
+            setIsFuncionarioDisabled(false); 
         } else {
-            setFuncionariosFiltrados([]);
+            setFuncionariosOptions([]);
             setIsFuncionarioDisabled(true);
         }
+    };
+
+    const handleFuncionarioChange = (selectedOption) => {
+        setFormData({ ...formData, funcionario: selectedOption });
     };
 
     const handleChange = (event) => {
@@ -83,7 +93,6 @@ const EmprestimoCadastro = () => {
         setFormData({ ...formData, [name]: value });
     };
 
-    // Formata data para exibir (dd/mm/aaaa)
     const formatDateToDisplay = (isoDate) => {
         if (!isoDate) return '';
         const [year, month, day] = isoDate.split('-');
@@ -93,25 +102,49 @@ const EmprestimoCadastro = () => {
     const handleSubmit = async (event) => {
         event.preventDefault();
 
+        // Validação simples
+        if (!formData.ferramenta || !formData.funcionario) {
+            setMsgErro("Selecione a ferramenta e o funcionário.");
+            setShowError(true);
+            setTimeout(() => setShowError(false), 3000);
+            return;
+        }
+
+        if (formData.data_emprestimo > hoje) {
+            setMsgErro("A data do empréstimo não pode ser futura.");
+            setShowError(true);
+            setTimeout(() => setShowError(false), 3000);
+            return;
+        }
+
+        // 4. PREPARAR DADOS PARA O BACKEND
+        // O backend espera apenas o ID (ex: "ferramenta": 5), mas nosso state tem o objeto completo.
+        const payload = {
+            ferramenta: formData.ferramenta.value,
+            funcionario: formData.funcionario.value,
+            data_emprestimo: formData.data_emprestimo,
+            observacoes: formData.observacoes
+        };
+
         try {
-            const response = await api.post('/api/emprestimos/', formData);
+            const response = await api.post('/api/emprestimos/', payload);
             console.log("Empréstimo realizado:", response.data);
 
             setShowSuccess(true);
             setShowError(false);
             
-            // Reseta o form e bloqueia funcionário de novo
+            // Reset
             setFormData({
-                ferramenta: '',
-                funcionario: '',
-                data_emprestimo: new Date().toISOString().split('T')[0],
+                ferramenta: null,
+                funcionario: null,
+                data_emprestimo: hoje,
                 observacoes: ''
             });
             setIsFuncionarioDisabled(true);
             setInputType('text');
 
-            // Remove a ferramenta da lista visualmente (já que foi emprestada)
-            setFerramentas(ferramentas.filter(f => f.id !== response.data.ferramenta));
+            // Remove a ferramenta da lista de opções
+            setFerramentasOptions(prev => prev.filter(f => f.value !== response.data.ferramenta));
 
             setTimeout(() => setShowSuccess(false), 3000);
         } catch (error) {
@@ -137,68 +170,72 @@ const EmprestimoCadastro = () => {
                 >
                     <p id={styles.cadastro}>Novo Empréstimo</p>
                     
-                    {/* Select de Ferramenta (Gatilho do Filtro) */}
-                    <select
-                        name="ferramenta"
-                        value={formData.ferramenta}
-                        onChange={handleFerramentaChange}
-                        required
-                        className={styles.selectInput}
-                    >
-                        <option value="" disabled>Selecione a Ferramenta</option>
-                        {ferramentas.map(f => (
-                            <option key={f.id} value={f.id}>
-                                {f.nome} - {f.numero_serie}
-                            </option>
-                        ))}
-                    </select>
+                    {/* SELECT DE FERRAMENTA (REACT-SELECT) */}
+                    <div className={styles.inputGroup}>
+                        <label className={styles.label}>
+                            Ferramenta <span className={styles.asterisk}>*</span>
+                        </label>
+                        <Select
+                            placeholder="Selecione a ferramenta"
+                            noOptionsMessage={() => "Nenhuma ferramenta disponível"}
+                            styles={customSelectStyles} // Aplica nosso estilo Dark
+                            options={ferramentasOptions}
+                            value={formData.ferramenta}
+                            onChange={handleFerramentaChange}
+                            isClearable // Permite limpar a seleção com um 'x'
+                            required
+                        />
+                    </div>
 
-                    {/* Select de Funcionário (Dependente) */}
-                    <select
-                        name="funcionario"
-                        value={formData.funcionario}
-                        onChange={handleChange}
-                        required
-                        className={styles.selectInput}
-                        disabled={isFuncionarioDisabled} // Fica cinza se não tiver ferramenta
-                        style={{ opacity: isFuncionarioDisabled ? 0.5 : 1 }}
-                    >
-                        <option value="" disabled>
-                            {isFuncionarioDisabled 
-                                ? "Selecione uma ferramenta primeiro..." 
-                                : "Selecione o Funcionário"}
-                        </option>
-                        
-                        {funcionariosFiltrados.map(func => (
-                            <option key={func.id} value={func.id}>
-                                {func.nome} ({func.matricula})
-                            </option>
-                        ))}
-                    </select>
+                    {/* SELECT DE FUNCIONÁRIO (REACT-SELECT) */}
+                    <div className={styles.inputGroup}>
+                        <label className={styles.label}>
+                            Funcionário <span className={styles.asterisk}>*</span>
+                        </label>
+                        <Select
+                            placeholder={isFuncionarioDisabled ? "Selecione uma ferramenta primeiro" : "Pesquise o funcionário"}
+                            noOptionsMessage={() => "Nenhum funcionário encontrado nesta filial"}
+                            styles={customSelectStyles}
+                            options={funcionariosOptions}
+                            value={formData.funcionario}
+                            onChange={handleFuncionarioChange}
+                            isDisabled={isFuncionarioDisabled}
+                            isClearable
+                            required
+                        />
+                    </div>
                     
-                    <label className={styles.inputLabel}>Data de Início:</label>
+                    {/* ... (O RESTO DO CÓDIGO PERMANECE IGUAL: DATA E OBSERVAÇÕES) ... */}
                     
-                    <input
-                        type={inputType}
-                        name='data_emprestimo' 
-                        required
-                        // ... resto das propriedades do input ...
-                        onFocus={() => setInputType('date')}
-                        onBlur={() => setInputType('text')}
-                        value={inputType === 'date' ? formData.data_emprestimo : formatDateToDisplay(formData.data_emprestimo)}
-                        onChange={handleChange}
-                        className={styles.dateInput}
-                    />
+                    <div className={styles.inputGroup}>
+                        <label className={styles.label}>
+                            Data de Início <span className={styles.asterisk}>*</span>
+                        </label>
+                        <input
+                            type={inputType}
+                            name='data_emprestimo' 
+                            required
+                            placeholder='Selecione a data'
+                            onFocus={() => setInputType('date')}
+                            onBlur={() => setInputType('text')}
+                            value={inputType === 'date' ? formData.data_emprestimo : formatDateToDisplay(formData.data_emprestimo)}
+                            onChange={handleChange}
+                            className={styles.dateInput}
+                            max={hoje}
+                        />
+                    </div>
 
-                    {/* Observações */}
-                    <textarea
-                        name="observacoes"
-                        placeholder="Observações (Opcional)"
-                        value={formData.observacoes}
-                        onChange={handleChange}
-                        className={styles.textArea}
-                        rows="3"
-                    ></textarea>
+                    <div className={styles.inputGroup}>
+                        <label className={styles.label}>Observações</label>
+                        <textarea
+                            name="observacoes"
+                            placeholder="Digite observações"
+                            value={formData.observacoes}
+                            onChange={handleChange}
+                            className={styles.textArea}
+                            rows="3"
+                        ></textarea>
+                    </div>
                     
                     <button id={styles.enviar} type='submit'>
                         CONFIRMAR EMPRÉSTIMO
@@ -206,7 +243,7 @@ const EmprestimoCadastro = () => {
                 </form>
 
                 {showSuccess && <CadastradoComponent />}
-                {showError && <FalhaCadastroComponent />}
+                {showError && <FalhaCadastroComponent message={msgErro} />}
             </div>
         </div>
     );

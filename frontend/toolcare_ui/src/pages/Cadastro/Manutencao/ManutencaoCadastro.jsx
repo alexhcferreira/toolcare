@@ -5,18 +5,21 @@ import api from '../../../services/api';
 import CadastradoComponent from '../../../components/Avisos/Cadastrado/Cadastrado';
 import FalhaCadastroComponent from '../../../components/Avisos/FalhaCadastro/FalhaCadastro';
 
+// 1. IMPORTS DO REACT-SELECT
+import Select from 'react-select';
+import { customSelectStyles } from '../../../components/CustomSelect/selectStyles';
+
 const ManutencaoCadastro = () => {
-    // Estado do formulário com o novo campo observacoes
+    const hoje = new Date().toISOString().split('T')[0];
+
     const [formData, setFormData] = useState({
-        ferramenta: '',
-        tipo: '', // PREVENTIVA ou CORRETIVA
-        data_inicio: new Date().toISOString().split('T')[0], // Inicia com data de hoje
+        ferramenta: null, // Agora é um objeto do react-select
+        tipo: '', 
+        data_inicio: hoje,
         observacoes: ''
     });
 
-    const [ferramentas, setFerramentas] = useState([]);
-    
-    // Controle visual da data (Text -> Date -> Text)
+    const [ferramentasOptions, setFerramentasOptions] = useState([]); // Opções formatadas
     const [inputType, setInputType] = useState('text');
 
     const [showSuccess, setShowSuccess] = useState(false);
@@ -27,10 +30,16 @@ const ManutencaoCadastro = () => {
         const loadFerramentas = async () => {
             try {
                 const response = await api.get('/api/ferramentas/');
-                // REGRA: Só mostra ferramentas disponíveis
-                // O backend pode já filtrar, mas garantimos aqui
-                const disponiveis = response.data.filter(f => f.estado === 'DISPONIVEL');
-                setFerramentas(disponiveis);
+                
+                // 2. FILTRAR E FORMATAR PARA O REACT-SELECT
+                const formatados = response.data
+                    .filter(f => f.estado === 'DISPONIVEL')
+                    .map(f => ({
+                        value: f.id,
+                        label: `${f.nome} - ${f.numero_serie}`
+                    }));
+                
+                setFerramentasOptions(formatados);
             } catch (error) {
                 console.error("Erro ao carregar ferramentas:", error);
             }
@@ -43,7 +52,11 @@ const ManutencaoCadastro = () => {
         setFormData({ ...formData, [name]: value });
     };
 
-    // Formata a data ISO (yyyy-mm-dd) para BR (dd/mm/yyyy) apenas para exibição
+    // 3. HANDLER ESPECÍFICO PARA FERRAMENTA
+    const handleFerramentaChange = (selectedOption) => {
+        setFormData({ ...formData, ferramenta: selectedOption });
+    };
+
     const formatDateToDisplay = (isoDate) => {
         if (!isoDate) return '';
         const [year, month, day] = isoDate.split('-');
@@ -53,25 +66,39 @@ const ManutencaoCadastro = () => {
     const handleSubmit = async (event) => {
         event.preventDefault();
 
+        // Validação manual
+        if (!formData.ferramenta) {
+            setMsgErro("Selecione uma ferramenta.");
+            setShowError(true);
+            setTimeout(() => setShowError(false), 3000);
+            return;
+        }
+
+        // 4. PREPARAR DADOS (Extrair ID)
+        const payload = {
+            ...formData,
+            ferramenta: formData.ferramenta.value
+        };
+
         try {
-            const response = await api.post('/api/manutencoes/', formData);
+            const response = await api.post('/api/manutencoes/', payload);
             
             console.log("Manutenção iniciada:", response.data);
 
             setShowSuccess(true);
             setShowError(false);
             
-            // Limpa o formulário
+            // Reset
             setFormData({
-                ferramenta: '',
+                ferramenta: null,
                 tipo: '',
-                data_inicio: new Date().toISOString().split('T')[0],
+                data_inicio: hoje,
                 observacoes: ''
             });
             setInputType('text');
 
-            // Remove a ferramenta da lista visualmente (pois agora está EM_MANUTENCAO)
-            setFerramentas(ferramentas.filter(f => f.id !== response.data.ferramenta));
+            // Remove a ferramenta da lista de opções (pois agora está EM_MANUTENCAO)
+            setFerramentasOptions(prev => prev.filter(f => f.value !== response.data.ferramenta));
 
             setTimeout(() => setShowSuccess(false), 3000);
         } catch (error) {
@@ -97,61 +124,71 @@ const ManutencaoCadastro = () => {
                 >
                     <p id={styles.cadastro}>Nova Manutenção</p>
                     
-                    {/* Select de Ferramenta */}
-                    <select
-                        name="ferramenta"
-                        value={formData.ferramenta}
-                        onChange={handleChange}
-                        required
-                        className={styles.selectInput}
-                    >
-                        <option value="" disabled>Selecione a Ferramenta</option>
-                        {ferramentas.map(f => (
-                            <option key={f.id} value={f.id}>
-                                {f.nome} - {f.numero_serie}
-                            </option>
-                        ))}
-                    </select>
+                    {/* SELECT DE FERRAMENTA (COM PESQUISA) */}
+                    <div className={styles.inputGroup}>
+                        <label className={styles.label}>
+                            Ferramenta <span className={styles.asterisk}>*</span>
+                        </label>
+                        <Select
+                            placeholder="Pesquise a ferramenta..."
+                            noOptionsMessage={() => "Nenhuma ferramenta disponível"}
+                            styles={customSelectStyles}
+                            options={ferramentasOptions}
+                            value={formData.ferramenta}
+                            onChange={handleFerramentaChange}
+                            isClearable
+                            required
+                        />
+                    </div>
 
-                    {/* Select de Tipo */}
-                    <select
-                        name="tipo"
-                        value={formData.tipo}
-                        onChange={handleChange}
-                        required
-                        className={styles.selectInput}
-                    >
-                        <option value="" disabled>Tipo de Manutenção</option>
-                        <option value="PREVENTIVA">Preventiva</option>
-                        <option value="CORRETIVA">Corretiva</option>
-                    </select>
+                    {/* SELECT DE TIPO (NATIVO - Mantido como estava) */}
+                    <div className={styles.inputGroup}>
+                        <label className={styles.label}>
+                            Tipo <span className={styles.asterisk}>*</span>
+                        </label>
+                        <select
+                            name="tipo"
+                            value={formData.tipo}
+                            onChange={handleChange}
+                            required
+                            className={`${styles.selectInput} ${formData.tipo === "" ? styles.emptySelect : ""}`}
+                        >
+                            <option value="">Selecione o tipo</option>
+                            <option value="PREVENTIVA">Preventiva</option>
+                            <option value="CORRETIVA">Corretiva</option>
+                        </select>
+                    </div>
                     
-                    {/* Legenda Data */}
-                    <label className={styles.inputLabel}>Data de Início:</label>
+                    {/* Data de Início */}
+                    <div className={styles.inputGroup}>
+                        <label className={styles.label}>
+                            Data de Início <span className={styles.asterisk}>*</span>
+                        </label>
+                        <input
+                            type={inputType}
+                            name='data_inicio' 
+                            required
+                            placeholder='Selecione a data'
+                            onFocus={() => setInputType('date')}
+                            onBlur={() => setInputType('text')}
+                            value={inputType === 'date' ? formData.data_inicio : formatDateToDisplay(formData.data_inicio)}
+                            onChange={handleChange}
+                            className={styles.dateInput}
+                        />
+                    </div>
 
-                    {/* Input de Data */}
-                    <input
-                        type={inputType}
-                        name='data_inicio' 
-                        required
-                        placeholder='Data de Início'
-                        onFocus={() => setInputType('date')}
-                        onBlur={() => setInputType('text')}
-                        value={inputType === 'date' ? formData.data_inicio : formatDateToDisplay(formData.data_inicio)}
-                        onChange={handleChange}
-                        className={styles.dateInput}
-                    />
-
-                    {/* Área de Observações (Novo Campo) */}
-                    <textarea
-                        name="observacoes"
-                        placeholder="Observações (Opcional)"
-                        value={formData.observacoes}
-                        onChange={handleChange}
-                        className={styles.textArea}
-                        rows="3"
-                        style={{ marginTop: '1.5rem' }}
-                    ></textarea>
+                    {/* Observações */}
+                    <div className={styles.inputGroup}>
+                        <label className={styles.label}>Observações</label>
+                        <textarea
+                            name="observacoes"
+                            placeholder="Descreva o problema ou procedimento"
+                            value={formData.observacoes}
+                            onChange={handleChange}
+                            className={styles.textArea}
+                            rows="3"
+                        ></textarea>
+                    </div>
                     
                     <button id={styles.enviar} type='submit'>
                         INICIAR MANUTENÇÃO
@@ -159,7 +196,7 @@ const ManutencaoCadastro = () => {
                 </form>
 
                 {showSuccess && <CadastradoComponent />}
-                {showError && <FalhaCadastroComponent />}
+                {showError && <FalhaCadastroComponent message={msgErro} />}
             </div>
         </div>
     );

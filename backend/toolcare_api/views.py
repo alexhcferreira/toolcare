@@ -1,5 +1,7 @@
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
+from rest_framework_simplejwt.views import TokenObtainPairView
+from .serializers import CustomTokenObtainPairSerializer
 from .models import Usuario, Filial, Deposito, Setor, Cargo, Funcionario, Ferramenta, Emprestimo, Manutencao
 from .serializers import UsuarioSerializer, FilialSerializer, DepositoSerializer, SetorSerializer, CargoSerializer, FuncionarioSerializer, FerramentaSerializer, EmprestimoSerializer, ManutencaoSerializer
 from .permissions import IsAdminOrMaximo, UsuarioPermissions, ReadOnly
@@ -123,3 +125,6 @@ class ManutencaoViewSet(viewsets.ModelViewSet):
             ferramenta_queryset = ferramenta_queryset.filter(deposito__filial__in=user.filiais.all())
         context['ferramenta_queryset'] = ferramenta_queryset
         return context
+    
+class CustomTokenObtainPairView(TokenObtainPairView):
+    serializer_class = CustomTokenObtainPairSerializer

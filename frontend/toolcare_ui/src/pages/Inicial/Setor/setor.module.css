@@ -4,9 +4,8 @@
     position: relative;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    padding-top: 4rem;
-    /* Garante que o conteúdo fique ATRÁS do menu se houver sobreposição acidental */
+    align-items: center; /* Centraliza a barra no espaço disponível */
+    padding-top: 2.6rem; 
     z-index: 1; 
 }
 
@@ -15,26 +14,30 @@
     color: white;
     font-size: 5rem;
     position: absolute;
-    top: 2.6rem;
-    right: 4rem;
+    /* Ajustado para 2.2rem conforme seu padrão novo */
+    top: 2.2rem; 
+    right: 4rem; 
+    
     cursor: pointer;
     text-decoration: none;
     line-height: 1;
     font-family: 'Lato', sans-serif;
     font-weight: 300;
+    transform: translateY(-10%); 
 }
 
 .addButton:hover {
-    transform: scale(1.1);
+    transform: translateY(-10%) scale(1.1);
 }
 
 /* A barra branca */
 .searchBarContainer {
     width: 40%;
     min-width: 300px;
-    /* Reduzi de 4.5rem para 3.5rem (Mais fina) */
     height: 2.85rem; 
-    margin-right: -25rem;
+    
+    /* REMOVIDO: margin-right: -25rem; (Isso estava quebrando a centralização) */
+    
     background-color: white;
     border-radius: 4rem;
     display: flex;
@@ -51,11 +54,9 @@
     font-size: 1.6rem;
     font-family: 'Lato', sans-serif;
     background: transparent;
-    /* REMOVIDO O OUTLINE LARANJA */
     outline: none; 
 }
 
-/* Garante que não tenha borda nem quando clica */
 .searchInput:focus {
     outline: none;
     box-shadow: none;
@@ -65,4 +66,17 @@
     width: 100%;
     display: flex;
     justify-content: center;
+    margin-top: 4rem; 
+}
+
+/* REMOVER O 'X' AZUL DO INPUT SEARCH */
+input[type="search"]::-webkit-search-cancel-button {
+    display: none;
+    -webkit-appearance: none;
+}
+
+input[type="search"]::-ms-clear {
+    display: none;
+    width: 0;
+    height: 0;
 }

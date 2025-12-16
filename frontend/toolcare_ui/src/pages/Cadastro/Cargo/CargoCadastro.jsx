@@ -25,22 +25,17 @@ const CargoCadastro = () => {
     const handleSubmit = async (event) => {
         event.preventDefault();
 
-        // (Removi o console.log daqui)
-
         try {
             const response = await api.post('/api/cargos/', formData);
             
-            // CORREÇÃO: O log só aparece se chegar nesta linha (sucesso)
-            console.log("Objeto cadastrado com sucesso:", response.data);
+            console.log("Cargo cadastrado com sucesso:", response.data);
 
             setShowSuccess(true);
             setShowError(false);
             setFormData({ nome_cargo: '', descricao_cargo: '' });
             setTimeout(() => setShowSuccess(false), 3000);
         } catch (error) {
-            // Log de erro melhorado para mostrar o motivo (ex: Duplicado)
             console.error('Erro ao cadastrar:', error.response ? error.response.data : error.message);
-            
             setShowError(true);
             setShowSuccess(false);
             setTimeout(() => setShowError(false), 3000);
@@ -61,24 +56,34 @@ const CargoCadastro = () => {
                 >
                     <p id={styles.cadastro}>Cadastro de Cargo</p>
                     
-                    <input
-                        type='text'
-                        id={styles.nomeCargo}
-                        name='nome_cargo'
-                        required
-                        placeholder='Nome'
-                        value={formData.nome_cargo}
-                        onChange={handleChange}
-                    />
+                    {/* Campo Nome */}
+                    <div className={styles.inputGroup}>
+                        <label className={styles.label}>
+                            Nome do cargo <span className={styles.asterisk}>*</span>
+                        </label>
+                        <input
+                            type='text'
+                            id={styles.nomeCargo}
+                            name='nome_cargo'
+                            required
+                            placeholder='Ex: Técnico de Manutenção'
+                            value={formData.nome_cargo}
+                            onChange={handleChange}
+                        />
+                    </div>
                     
-                    <input
-                        type='text'
-                        id={styles.descricaoCargo}
-                        name='descricao_cargo'
-                        placeholder='Descrição'
-                        value={formData.descricao_cargo}
-                        onChange={handleChange}
-                    />
+                    {/* Campo Descrição */}
+                    <div className={styles.inputGroup}>
+                        <label className={styles.label}>Descrição</label>
+                        <input
+                            type='text'
+                            id={styles.descricaoCargo}
+                            name='descricao_cargo'
+                            placeholder='Digite a descrição'
+                            value={formData.descricao_cargo}
+                            onChange={handleChange}
+                        />
+                    </div>
                     
                     <button id={styles.enviar} type='submit'>
                         ENVIAR

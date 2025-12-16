@@ -1,0 +1,43 @@
+.layoutContainer {
+    display: flex;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.menuArea {
+    z-index: 1000;
+    flex-shrink: 0;
+    width: 25rem;   /* Largura padrão (Monitores Grandes) */
+    transition: width 0.3s ease; /* Animação suave na troca de tamanho */
+}
+
+.contentArea {
+    flex: 1; 
+    /* IMPORTANTE: Removi o calc() fixo e deixei o flex lidar com isso. 
+       Se precisar do calc, teria que por media query aqui tbm. 
+       O 'flex: 1' geralmente resolve sozinho. */
+    overflow: auto;
+    background-color: #2c2c2c;
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+/* === AJUSTE PARA TELAS MENORES (Notebooks e Monitores 4:3) === */
+@media (max-width: 1400px) {
+    .menuArea {
+        width: 19rem; /* Menu fica mais estreito (aprox 190px) */
+    }
+}
+
+/* === AJUSTE PARA TABLET/CELULAR (Menu some) === */
+@media (max-width: 800px) {
+    .menuArea {
+        display: none; 
+    }
+}
+
+
+

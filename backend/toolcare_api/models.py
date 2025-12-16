@@ -66,6 +66,13 @@ class Deposito(models.Model):
     nome = models.CharField(max_length=100)
     filial = models.ForeignKey(Filial, on_delete=models.CASCADE, related_name='depositos')
     ativo = models.BooleanField(default=True)
+    class Meta:
+        # REGRA DE NEGÓCIO: Impede duplicidade de nome DENTRO da mesma filial.
+        # Ex: D01 (Filial A) e D01 (Filial A) -> ERRO
+        # Ex: D01 (Filial A) e D01 (Filial B) -> OK
+        constraints = [
+            models.UniqueConstraint(fields=['nome', 'filial'], name='unique_nome_por_filial')
+        ]
     def __str__(self):
         return f"{self.nome} - {self.filial.nome}"
 
@@ -87,7 +94,7 @@ class Ferramenta(models.Model):
     numero_serie = models.CharField(max_length=50, unique=True)
     descricao = models.TextField(blank=True, null=True)
     foto = models.ImageField(upload_to=upload_path_ferramenta, blank=True, default='defaults/default_ferramenta.png')
-    data_aquisicao = models.DateField()
+    data_aquisicao = models.DateField(blank=True, null=True)
     class EstadoChoices(models.TextChoices):
         DISPONIVEL = 'DISPONIVEL', 'Disponível'
         EMPRESTADA = 'EMPRESTADA', 'Emprestada'

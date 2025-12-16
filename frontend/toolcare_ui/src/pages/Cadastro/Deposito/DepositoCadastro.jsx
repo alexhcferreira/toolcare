@@ -5,24 +5,33 @@ import api from '../../../services/api';
 import CadastradoComponent from '../../../components/Avisos/Cadastrado/Cadastrado';
 import FalhaCadastroComponent from '../../../components/Avisos/FalhaCadastro/FalhaCadastro';
 
+// 1. IMPORTS DO REACT-SELECT
+import Select from 'react-select';
+import { customSelectStyles } from '../../../components/CustomSelect/selectStyles';
+
 const DepositoCadastro = () => {
     const [formData, setFormData] = useState({
         nome: '',
-        filial: '' // Aqui vai o ID da filial selecionada
+        filial: null // Objeto { value, label }
     });
 
-    // Estado para armazenar a lista de filiais para o Dropdown
-    const [filiais, setFiliais] = useState([]);
-
+    const [filiaisOptions, setFiliaisOptions] = useState([]);
     const [showSuccess, setShowSuccess] = useState(false);
     const [showError, setShowError] = useState(false);
+    const [msgErro, setMsgErro] = useState('');
 
-    // Carrega as filiais assim que a tela abre
     useEffect(() => {
         const loadFiliais = async () => {
             try {
                 const response = await api.get('/api/filiais/');
-                setFiliais(response.data);
+                
+                // 2. FORMATAÇÃO: NOME - CIDADE
+                const formatados = response.data.map(f => ({
+                    value: f.id,
+                    label: `${f.nome} - ${f.cidade}`
+                }));
+                
+                setFiliaisOptions(formatados);
             } catch (error) {
                 console.error("Erro ao carregar filiais:", error);
             }
@@ -32,26 +41,45 @@ const DepositoCadastro = () => {
 
     const handleChange = (event) => {
         const { name, value } = event.target;
-        setFormData({
-            ...formData,
-            [name]: value
-        });
+        setFormData({ ...formData, [name]: value });
+    };
+
+    // 3. HANDLER ESPECÍFICO PARA O SELECT
+    const handleFilialChange = (selectedOption) => {
+        setFormData({ ...formData, filial: selectedOption });
     };
 
     const handleSubmit = async (event) => {
         event.preventDefault();
 
+        // Validação manual
+        if (!formData.filial) {
+            setMsgErro("Selecione uma filial.");
+            setShowError(true);
+            setTimeout(() => setShowError(false), 3000);
+            return;
+        }
+
+        const dataToSend = {
+            nome: formData.nome,
+            filial: formData.filial.value // Extrai o ID
+        };
+
         try {
-            const response = await api.post('/api/depositos/', formData);
+            const response = await api.post('/api/depositos/', dataToSend);
             
             console.log("Depósito cadastrado com sucesso:", response.data);
 
             setShowSuccess(true);
             setShowError(false);
-            setFormData({ nome: '', filial: '' }); // Reseta o form
+            setFormData({ nome: '', filial: null }); 
             setTimeout(() => setShowSuccess(false), 3000);
         } catch (error) {
-            console.error('Erro ao cadastrar:', error.response ? error.response.data : error.message);
+            const msg = error.response?.data?.detail || 
+                        (error.response?.data?.non_field_errors ? error.response.data.non_field_errors[0] : "Erro ao cadastrar");
+            
+            console.error('Erro ao cadastrar:', error.response?.data);
+            setMsgErro(msg);
             
             setShowError(true);
             setShowSuccess(false);
@@ -73,31 +101,38 @@ const DepositoCadastro = () => {
                 >
                     <p id={styles.cadastro}>Cadastro de Depósito</p>
                     
-                    <input
-                        type='text'
-                        id={styles.nomeDeposito}
-                        name='nome'
-                        required
-                        placeholder='Nome do Depósito'
-                        value={formData.nome}
-                        onChange={handleChange}
-                    />
+                    {/* Campo Nome */}
+                    <div className={styles.inputGroup}>
+                        <label className={styles.label}>
+                            Nome do depósito <span className={styles.asterisk}>*</span>
+                        </label>
+                        <input
+                            type='text' 
+                            id={styles.nomeDeposito}
+                            name='nome'
+                            required
+                            placeholder='Ex: Depósito Central'
+                            value={formData.nome}
+                            onChange={handleChange}
+                        />
+                    </div>
                     
-                    {/* Select para escolher a Filial */}
-                    <select
-                        name="filial"
-                        value={formData.filial}
-                        onChange={handleChange}
-                        required
-                        className={styles.selectInput}
-                    >
-                        <option value="" disabled>Selecione a Filial</option>
-                        {filiais.map(filial => (
-                            <option key={filial.id} value={filial.id}>
-                                {filial.nome}
-                            </option>
-                        ))}
-                    </select>
+                    {/* Campo Filial com React-Select */}
+                    <div className={styles.inputGroup}>
+                        <label className={styles.label}>
+                            Filial <span className={styles.asterisk}>*</span>
+                        </label>
+                        <Select
+                            placeholder="Selecione a filial"
+                            noOptionsMessage={() => "Nenhuma filial encontrada"}
+                            styles={customSelectStyles}
+                            options={filiaisOptions}
+                            value={formData.filial}
+                            onChange={handleFilialChange}
+                            isClearable
+                            required
+                        />
+                    </div>
                     
                     <button id={styles.enviar} type='submit'>
                         ENVIAR
@@ -105,7 +140,7 @@ const DepositoCadastro = () => {
                 </form>
 
                 {showSuccess && <CadastradoComponent />}
-                {showError && <FalhaCadastroComponent />}
+                {showError && <FalhaCadastroComponent message={msgErro} />}
             </div>
         </div>
     );

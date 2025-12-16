@@ -2,12 +2,10 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import styles from './setor_cadastro.module.css';
 import api from '../../../services/api'; 
-// Certifique-se que o caminho dos componentes de aviso está correto
 import CadastradoComponent from '../../../components/Avisos/Cadastrado/Cadastrado';
 import FalhaCadastroComponent from '../../../components/Avisos/FalhaCadastro/FalhaCadastro';
 
 const SetorCadastro = () => {
-    // Ajustado para os campos do modelo de Setor (nome_setor, descricao_setor)
     const [formData, setFormData] = useState({
         nome_setor: '',
         descricao_setor: ''
@@ -28,10 +26,9 @@ const SetorCadastro = () => {
         event.preventDefault();
 
         try {
-            // Ajustado para o endpoint de setores
             const response = await api.post('/api/setores/', formData);
             
-            console.log("Objeto cadastrado com sucesso:", response.data);
+            console.log("Setor cadastrado com sucesso:", response.data);
 
             setShowSuccess(true);
             setShowError(false);
@@ -48,7 +45,6 @@ const SetorCadastro = () => {
 
     return (
         <div className={styles.container}>
-            {/* Link voltando para a lista de setores */}
             <Link to="/setores">
                 <p id={styles.voltar}> <b>&lt;</b> </p>
             </Link>
@@ -61,24 +57,34 @@ const SetorCadastro = () => {
                 >
                     <p id={styles.cadastro}>Cadastro de Setor</p>
                     
-                    <input
-                        type='text'
-                        id={styles.nomeSetor}
-                        name='nome_setor'
-                        required
-                        placeholder='Nome'
-                        value={formData.nome_setor}
-                        onChange={handleChange}
-                    />
+                    {/* Campo Nome */}
+                    <div className={styles.inputGroup}>
+                        <label className={styles.label}>
+                            Nome do Setor <span className={styles.asterisk}>*</span>
+                        </label>
+                        <input
+                            type='text'
+                            id={styles.nomeSetor}
+                            name='nome_setor'
+                            required
+                            placeholder='Ex: Soldagem'
+                            value={formData.nome_setor}
+                            onChange={handleChange}
+                        />
+                    </div>
                     
-                    <input
-                        type='text'
-                        id={styles.descricaoSetor}
-                        name='descricao_setor'
-                        placeholder='Descrição'
-                        value={formData.descricao_setor}
-                        onChange={handleChange}
-                    />
+                    {/* Campo Descrição */}
+                    <div className={styles.inputGroup}>
+                        <label className={styles.label}>Descrição</label>
+                        <input
+                            type='text'
+                            id={styles.descricaoSetor}
+                            name='descricao_setor'
+                            placeholder='Digite a descrição'
+                            value={formData.descricao_setor}
+                            onChange={handleChange}
+                        />
+                    </div>
                     
                     <button id={styles.enviar} type='submit'>
                         ENVIAR

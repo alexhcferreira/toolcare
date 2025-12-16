@@ -1,14 +1,37 @@
 from rest_framework import serializers
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework.validators import UniqueValidator
 from .models import Usuario, Filial, Deposito, Setor, Cargo, Funcionario, Ferramenta, Emprestimo, Manutencao
 import datetime
 
 class UsuarioSerializer(serializers.ModelSerializer):
+
+    cpf = serializers.CharField(
+        validators=[
+            UniqueValidator(
+                queryset=Usuario.objects.all(),
+                message='Este CPF já está em uso.'
+            )
+        ]
+    )
+
     class Meta:
         model = Usuario
         fields = ['id', 'nome', 'cpf', 'tipo', 'filiais', 'ativo', 'password']
         extra_kwargs = {
             'password': {'write_only': True}
         }
+
+    def validate_cpf(self, value):
+        # Limpa pontuação se vier (apenas números) para garantir a busca correta
+        # (O django-cpf-cnpj geralmente salva limpo no banco)
+        cpf_limpo = ''.join(filter(str.isdigit, value))
+        
+        # Verifica na tabela OPOSTA (Funcionário)
+        if Funcionario.objects.filter(cpf=value).exists():
+            raise serializers.ValidationError("Este CPF já está em uso")
+        
+        return value
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -107,6 +130,13 @@ class FuncionarioSerializer(serializers.ModelSerializer):
         fields = ['id', 'nome', 'matricula', 'cpf', 'setor', 'setor_nome', 'cargo', 'cargo_nome', 'foto', 'ativo', 'filiais', 'filiais_detalhes']
         read_only_fields = ['id', 'setor_nome', 'cargo_nome']
     
+    def validate_cpf(self, value):
+        # Verifica na tabela OPOSTA (Usuário)
+        if Usuario.objects.filter(cpf=value).exists():
+            raise serializers.ValidationError("Este CPF já está em uso.")
+        
+        return value
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         user = self.context['request'].user
@@ -233,3 +263,15 @@ class ManutencaoSerializer(serializers.ModelSerializer):
         if not self.instance and ferramenta.estado != Ferramenta.EstadoChoices.DISPONIVEL:
             raise serializers.ValidationError(f"A ferramenta '{ferramenta.nome}' não está disponível para manutenção. Estado atual: {ferramenta.get_estado_display()}.")
         return ferramenta
+    
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+
+        # Adiciona campos personalizados ao token
+        token['tipo'] = user.tipo
+        token['nome'] = user.nome
+        # token['filiais'] = [f.id for f in user.filiais.all()] # Opcional se precisar no futuro
+
+        return token

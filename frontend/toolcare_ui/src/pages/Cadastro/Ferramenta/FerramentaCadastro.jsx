@@ -5,20 +5,24 @@ import api from '../../../services/api';
 import CadastradoComponent from '../../../components/Avisos/Cadastrado/Cadastrado';
 import FalhaCadastroComponent from '../../../components/Avisos/FalhaCadastro/FalhaCadastro';
 
+// 1. IMPORTS DO REACT-SELECT
+import Select from 'react-select';
+import { customSelectStyles } from '../../../components/CustomSelect/selectStyles';
+
 const FerramentaCadastro = () => {
     const [formData, setFormData] = useState({
         nome: '',
         numero_serie: '',
         descricao: '',
         data_aquisicao: '',
-        deposito: '',
+        deposito: null, // Alterado para null (objeto do select)
         foto: null
     });
 
     const [fileName, setFileName] = useState('');
-    const [depositosOptions, setDepositosOptions] = useState([]);
+    const [depositosOptions, setDepositosOptions] = useState([]); // Opções formatadas
     
-    // NOVO: Estado para controlar se mostra texto ou data
+    // Controle visual da data
     const [inputType, setInputType] = useState('text');
 
     const [showSuccess, setShowSuccess] = useState(false);
@@ -28,7 +32,14 @@ const FerramentaCadastro = () => {
         const loadDepositos = async () => {
             try {
                 const response = await api.get('/api/depositos/');
-                setDepositosOptions(response.data);
+                
+                // 2. FORMATAÇÃO PARA O REACT-SELECT
+                const formatados = response.data.map(d => ({
+                    value: d.id,
+                    label: `${d.nome} ${d.filial_nome ? `(${d.filial_nome})` : ''}`
+                }));
+                
+                setDepositosOptions(formatados);
             } catch (error) {
                 console.error("Erro ao carregar depósitos:", error);
             }
@@ -41,6 +52,11 @@ const FerramentaCadastro = () => {
         setFormData({ ...formData, [name]: value });
     };
 
+    // 3. HANDLER ESPECÍFICO PARA O SELECT
+    const handleDepositoChange = (selectedOption) => {
+        setFormData({ ...formData, deposito: selectedOption });
+    };
+
     const handleFileChange = (event) => {
         if (event.target.files[0]) {
             const file = event.target.files[0];
@@ -49,7 +65,14 @@ const FerramentaCadastro = () => {
         }
     };
 
-    // FUNÇÃO AUXILIAR: Transforma "2023-12-25" em "25/12/2023" para exibir
+    const formatFileName = (name) => {
+        if (!name) return '';
+        if (name.length > 40) {
+            return name.substring(0, 37) + '...'; 
+        }
+        return name;
+    };
+
     const formatDateToDisplay = (isoDate) => {
         if (!isoDate) return '';
         const [year, month, day] = isoDate.split('-');
@@ -59,31 +82,45 @@ const FerramentaCadastro = () => {
     const handleSubmit = async (event) => {
         event.preventDefault();
 
+        // Validação manual do Select (já que o required do HTML não funciona no componente customizado)
+        if (!formData.deposito) {
+            // Opcional: Você pode setar um erro visual aqui ou deixar o backend reclamar
+            // Mas como é obrigatório, o ideal é validar antes.
+            alert("Selecione um depósito!"); // Ou use um estado de erro mais elegante
+            return;
+        }
+
         const dataToSend = new FormData();
         dataToSend.append('nome', formData.nome);
         dataToSend.append('numero_serie', formData.numero_serie);
         dataToSend.append('descricao', formData.descricao);
-        dataToSend.append('data_aquisicao', formData.data_aquisicao);
-        dataToSend.append('deposito', formData.deposito);
         
+        // 4. EXTRAÇÃO DO ID DO OBJETO SELECT
+        dataToSend.append('deposito', formData.deposito.value);
+        
+        if (formData.data_aquisicao) {
+            dataToSend.append('data_aquisicao', formData.data_aquisicao);
+        }
+
         if (formData.foto) {
             dataToSend.append('foto', formData.foto);
         }
 
         try {
-            await api.post('/api/ferramentas/', dataToSend, {
+            const response = await api.post('/api/ferramentas/', dataToSend, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
             
+            console.log("Ferramenta cadastrada:", response.data);
+
             setShowSuccess(true);
             setShowError(false);
             
             setFormData({
                 nome: '', numero_serie: '', descricao: '', 
-                data_aquisicao: '', deposito: '', foto: null
+                data_aquisicao: '', deposito: null, foto: null
             });
             setFileName('');
-            // Volta o input para texto vazio
             setInputType('text');
 
             setTimeout(() => setShowSuccess(false), 3000);
@@ -110,66 +147,78 @@ const FerramentaCadastro = () => {
                     <p id={styles.cadastro}>Cadastro de Ferramenta</p>
                     
                     <div className={styles.row}>
-                        <input
-                            type='text' name='nome' required
-                            placeholder='Nome da Ferramenta'
-                            value={formData.nome} onChange={handleChange}
-                        />
-                        <input
-                            type='text' name='numero_serie' required
-                            placeholder='Nº de Série'
-                            value={formData.numero_serie} onChange={handleChange}
-                        />
+                        <div className={styles.inputGroup}>
+                            <label className={styles.label}>
+                                Nome <span className={styles.asterisk}>*</span>
+                            </label>
+                            <input
+                                type='text' name='nome' required
+                                placeholder='Ex: Chave de fenda'
+                                value={formData.nome} onChange={handleChange}
+                            />
+                        </div>
+
+                        <div className={styles.inputGroup}>
+                            <label className={styles.label}>
+                                Nº de Série <span className={styles.asterisk}>*</span>
+                            </label>
+                            <input
+                                type='text' name='numero_serie' required
+                                placeholder='Ex: 12345-ABC'
+                                value={formData.numero_serie} onChange={handleChange}
+                            />
+                        </div>
                     </div>
 
                     <div className={styles.row}>
-                        <select 
-                            name="deposito" 
-                            value={formData.deposito} 
-                            onChange={handleChange} 
-                            required 
-                            className={styles.selectInput}
-                        >
-                            <option value="" disabled>Selecione o Depósito</option>
-                            {depositosOptions.map(d => (
-                                <option key={d.id} value={d.id}>
-                                    {d.nome} {d.filial_nome ? `(${d.filial_nome})` : ''}
-                                </option>
-                            ))}
-                        </select>
+                        
+                        {/* SELECT COM PESQUISA (Substituindo o antigo) */}
+                        <div className={styles.inputGroup}>
+                            <label className={styles.label}>
+                                Depósito <span className={styles.asterisk}>*</span>
+                            </label>
+                            <Select
+                                placeholder="Selecione o depósito"
+                                noOptionsMessage={() => "Nenhum depósito encontrado"}
+                                styles={customSelectStyles}
+                                options={depositosOptions}
+                                value={formData.deposito}
+                                onChange={handleDepositoChange}
+                                isClearable
+                                required // Nota: O required no React-Select as vezes precisa de validação manual no submit
+                            />
+                        </div>
 
-                        {/* INPUT DE DATA MELHORADO */}
+                        <div className={styles.inputGroup}>
+                            <label className={styles.label}>
+                                Data Aquisição
+                            </label>
+                            <input
+                                type={inputType}
+                                name='data_aquisicao' 
+                                placeholder='Selecione a data'
+                                onFocus={() => setInputType('date')}
+                                onBlur={() => setInputType('text')}
+                                value={inputType === 'date' ? formData.data_aquisicao : formatDateToDisplay(formData.data_aquisicao)}
+                                onChange={handleChange}
+                                className={styles.dateInput}
+                            />
+                        </div>
+                    </div>
+
+                    <div className={styles.inputGroup}>
+                        <label className={styles.label}>Descrição</label>
                         <input
-                            type={inputType} // Muda dinamicamente entre 'text' e 'date'
-                            name='data_aquisicao' 
-                            required
-                            placeholder='Data Aquisição'
-                            
-                            // Ao clicar (focar), vira calendário
-                            onFocus={() => setInputType('date')}
-                            
-                            // Ao sair (blur), vira texto para mostrar formato BR
-                            onBlur={() => setInputType('text')}
-                            
-                            // Lógica do valor:
-                            // Se for tipo 'date' (focado), mostra o valor real (yyyy-mm-dd) para o navegador entender
-                            // Se for tipo 'text' (desfocado), mostra o valor formatado (dd/mm/yyyy) para o usuário ler
-                            value={inputType === 'date' ? formData.data_aquisicao : formatDateToDisplay(formData.data_aquisicao)}
-                            
-                            onChange={handleChange}
-                            className={styles.dateInput} // Classe nova para ajustar ícone
+                            type='text' name='descricao'
+                            placeholder='Digite a descrição'
+                            value={formData.descricao} onChange={handleChange}
                         />
                     </div>
 
-                    <input
-                        type='text' name='descricao'
-                        placeholder='Descrição (Opcional)'
-                        value={formData.descricao} onChange={handleChange}
-                    />
-
-                    <div className={styles.fileContainer}>
+                    <div className={styles.inputGroup}>
+                        <label className={styles.label}>Foto</label>
                         <label htmlFor="fotoInput" className={styles.customFileLabel}>
-                            {fileName ? `Arquivo: ${fileName}` : "Clique para enviar foto"}
+                            {fileName ? `Arquivo: ${formatFileName(fileName)}` : "Clique para selecionar..."}
                         </label>
                         <input 
                             type="file" 

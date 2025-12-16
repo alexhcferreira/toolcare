@@ -6,7 +6,6 @@ import CadastradoComponent from '../../../components/Avisos/Cadastrado/Cadastrad
 import FalhaCadastroComponent from '../../../components/Avisos/FalhaCadastro/FalhaCadastro';
 
 const FilialCadastro = () => {
-    // Campos baseados no model Filial (nome, cidade)
     const [formData, setFormData] = useState({
         nome: '',
         cidade: ''
@@ -27,7 +26,6 @@ const FilialCadastro = () => {
         event.preventDefault();
 
         try {
-            // Endpoint para Filiais
             const response = await api.post('/api/filiais/', formData);
             
             console.log("Filial cadastrada com sucesso:", response.data);
@@ -38,7 +36,6 @@ const FilialCadastro = () => {
             setTimeout(() => setShowSuccess(false), 3000);
         } catch (error) {
             console.error('Erro ao cadastrar:', error.response ? error.response.data : error.message);
-            
             setShowError(true);
             setShowSuccess(false);
             setTimeout(() => setShowError(false), 3000);
@@ -47,7 +44,6 @@ const FilialCadastro = () => {
 
     return (
         <div className={styles.container}>
-            {/* Link voltando para a lista de filiais */}
             <Link to="/filiais">
                 <p id={styles.voltar}> <b>&lt;</b> </p>
             </Link>
@@ -60,25 +56,29 @@ const FilialCadastro = () => {
                 >
                     <p id={styles.cadastro}>Cadastro de Filial</p>
                     
-                    <input
-                        type='text'
-                        id={styles.nomeFilial}
-                        name='nome'
-                        required
-                        placeholder='Nome da Filial'
-                        value={formData.nome}
-                        onChange={handleChange}
-                    />
+                    {/* Campo Nome */}
+                    <div className={styles.inputGroup}>
+                        <label className={styles.label}>
+                            Nome da Filial <span className={styles.asterisk}>*</span>
+                        </label>
+                        <input
+                            type='text' name='nome' required
+                            placeholder='Digite o nome'
+                            value={formData.nome} onChange={handleChange}
+                        />
+                    </div>
                     
-                    <input
-                        type='text'
-                        id={styles.cidadeFilial}
-                        name='cidade'
-                        required
-                        placeholder='Cidade'
-                        value={formData.cidade}
-                        onChange={handleChange}
-                    />
+                    {/* Campo Cidade */}
+                    <div className={styles.inputGroup}>
+                        <label className={styles.label}>
+                            Cidade <span className={styles.asterisk}>*</span>
+                        </label>
+                        <input
+                            type='text' name='cidade' required
+                            placeholder='Digite a cidade'
+                            value={formData.cidade} onChange={handleChange}
+                        />
+                    </div>
                     
                     <button id={styles.enviar} type='submit'>
                         ENVIAR
