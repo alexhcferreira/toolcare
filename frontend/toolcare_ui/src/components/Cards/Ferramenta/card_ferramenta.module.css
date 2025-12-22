@@ -1,97 +1,201 @@
 .card {
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
-    width: 26rem; 
-    height: auto; 
-    min-height: 40rem; /* Garante altura mínima uniforme */
+    width: 28rem;
+    min-height: 45rem; /* Altura generosa igual ao de funcionário */
     border-radius: 1rem;
     overflow: hidden;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
     background-color: #ffffff;
-    transition: transform 0.2s;
+    transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .card:hover {
     transform: translateY(-5px);
-    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
 }
 
-.cardImage {
-    width: 100%;
-    height: 25rem;
-    object-fit: cover; 
-    background-color: #f0f0f0; /* Fundo cinza caso a imagem carregue devagar */
-}
-
-.fundo {
-    padding: 1.5rem; 
+/* === CABEÇALHO === */
+.header {
+    background-color: #F46524;
+    padding: 1.5rem;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
-    flex: 1;
-}
-
-.infoContainer {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
+    align-items: center; /* Centraliza tudo */
+    gap: 0.8rem;
+    color: white;
 }
 
 .nome {
     font-family: 'Lato', sans-serif;
-    font-size: 2.2rem; 
+    font-size: 2rem; 
     font-weight: 900;
     margin: 0;
-    color: #333;
     line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
 }
 
-.detalhes {
-    margin-top: 1rem;
+/* Badge de Status (Fundo Branco, Texto Colorido) */
+.statusBadge {
+    background-color: white;
+    font-size: 1.2rem;
+    padding: 0.4rem 1.2rem;
+    border-radius: 2rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 
-.numSerie {
+/* Cores do TEXTO do badge */
+.DISPONIVEL { color: #28a745; }
+.EMPRESTADA { color: #dc3545; }
+.EM_MANUTENCAO { color: #ffc107; } /* Amarelo escuro */
+.INATIVA { color: #6c757d; }
+
+/* === CORPO === */
+.body {
+    padding: 2rem 1.5rem; 
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    flex: 1;
+    gap: 1.5rem;
+}
+
+/* === IMAGEM CENTRALIZADA === */
+.imageWrapper {
+    width: 19rem;   /* Tamanho grande */
+    height: 19rem;
+    border-radius: 1.5rem; /* Quadrado arredondado */
+    border: 4px solid #f0f0f0;
+    overflow: hidden;
+    margin: 0 auto; /* Centraliza */
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+    background-color: #f9f9f9;
+}
+
+.cardImage {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s;
+}
+
+.card:hover .cardImage {
+    transform: scale(1.05);
+}
+
+/* === INFO CENTRALIZADA (Serial) === */
+.infoCenter {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    text-align: center;
+}
+
+.block {
+    display: flex;
+    flex-direction: column;
+}
+
+.label {
+    font-size: 1rem;
+    color: #999;
+    text-transform: uppercase;
+    font-weight: bold;
+    margin-bottom: 0.3rem;
+    letter-spacing: 0.5px;
+}
+
+.valueBig {
+    font-family: 'Consolas', monospace; /* Fonte técnica para serial */
+    font-size: 1.8rem;
+    color: #333;
+    font-weight: 700;
+}
+
+.separator {
+    height: 1px;
+    background-color: #eee;
+    width: 100%;
+}
+
+/* === DEPÓSITO === */
+.blockDeposito {
+    display: flex;
+    flex-direction: column;
+    text-align: left;
+}
+
+.deposito {
     font-family: 'Lato', sans-serif;
-    font-size: 1.6rem; 
-    color: #666666;
-    margin: 0;
+    font-size: 1.4rem; 
+    color: #555;
+    font-weight: 600;
+    line-height: 1.4;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.status {
-    font-family: 'Lato', sans-serif;
-    font-size: 1.6rem; 
-    margin: 0.2rem 0 0 0;
-    font-weight: 500;
-}
-
-/* Cores de Status ATUALIZADAS */
-.DISPONIVEL { color: #28a745; } /* Verde */
-
-/* Emprestada agora é VERMELHO */
-.EMPRESTADA { color: #dc3545; } 
-
-/* Manutenção agora é LARANJA/AMARELO */
-.EM_MANUTENCAO { color: #ffc107; } 
-
-.INATIVA { color: #6c757d; } /* Cinza */
-
+/* === BOTÃO (Escuro) === */
 .buttonCard {
-    background-color: #F46524;
-    margin-top: 2rem;
+    background-color: #333;
     color: #ffffff;
     padding: 1rem;
     text-align: center;
     border: none;
     border-radius: 0.5rem;
     cursor: pointer;
-    font-size: 1.6rem; 
-    font-weight: bold;
+    font-size: 1.4rem; 
+    font-weight: 800;
     font-family: 'Lato', sans-serif;
     width: 100%;
+    margin-top: auto;
     transition: background-color 0.2s;
 }
 
 .buttonCard:hover {
-    background-color: #d9531e;
+    background-color: #000;
 }
+
+/* ... (Cabeçalho e Nome mantidos) ... */
+
+/* Badge de Status (Agora com fundo colorido e texto branco) */
+.statusBadge {
+    /* background-color: white;  <-- REMOVIDO */
+    color: white; /* TEXTO BRANCO */
+    
+    font-size: 1.1rem;
+    padding: 0.4rem 1.2rem;
+    border-radius: 2rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2); /* Sombra leve para destacar do fundo laranja */
+}
+
+/* Cores de FUNDO do badge */
+.DISPONIVEL { 
+    background-color: #28a745; /* Verde */
+}
+
+.EMPRESTADA { 
+    background-color: #dc3545; /* Vermelho */
+}
+
+.EM_MANUTENCAO { 
+    background-color: #ffc107; /* Amarelo */
+    /* Truque: Sombra no texto para conseguir ler o branco em cima do amarelo */
+    text-shadow: 0px 1px 2px rgba(0,0,0,0.4); 
+}
+
+.INATIVA { 
+    background-color: #6c757d; /* Cinza */
+}
+
+/* ... (Corpo e Imagem mantidos) ... */

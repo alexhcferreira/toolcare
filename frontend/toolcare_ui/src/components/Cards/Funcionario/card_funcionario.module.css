@@ -1,94 +1,157 @@
 .card {
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
-    width: 26rem; 
-    height: auto; 
-    min-height: 40rem;
+    width: 28rem;
+    /* Aumentei a altura mínima pois a foto agora é grande e empilhada */
+    min-height: 48rem; 
     border-radius: 1rem;
     overflow: hidden;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
     background-color: #ffffff;
-    transition: transform 0.2s;
+    transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .card:hover {
     transform: translateY(-5px);
-    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
 }
 
-.cardImage {
-    width: 100%;
-    height: 25rem;
-    object-fit: cover; 
-    background-color: #f0f0f0;
-}
-
-.fundo {
-    padding: 1.5rem; 
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    flex: 1;
-}
-
-.infoContainer {
+/* === CABEÇALHO === */
+.header {
+    background-color: #F46524;
+    padding: 1.5rem;
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+    color: white;
+    text-align: center; /* Centralizei o nome no cabeçalho também */
 }
 
 .nome {
     font-family: 'Lato', sans-serif;
-    font-size: 2.2rem; 
+    font-size: 2rem; 
     font-weight: 900;
     margin: 0;
-    color: #333;
     line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.detalhes {
-    margin-top: 1rem;
+.badge {
+    align-self: center; /* Badge centralizada */
+    background-color: rgba(0, 0, 0, 0.2);
+    font-size: 1.2rem;
+    padding: 0.3rem 1rem;
+    border-radius: 2rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
-.matricula {
-    font-family: 'Lato', sans-serif;
-    font-size: 1.6rem; 
-    color: #666666;
-    margin: 0;
-    font-weight: medium;
+/* === CORPO === */
+.body {
+    padding: 2rem 1.5rem; 
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    flex: 1;
+    gap: 1.5rem;
+}
+
+/* === FOTO GRANDE === */
+.avatarWrapper {
+    width: 14rem;   /* Bem grande */
+    height: 14rem;
+    border-radius: 50%;
+    border: 4px solid #f0f0f0;
+    overflow: hidden;
+    margin: 0 auto; /* Centraliza horizontalmente */
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+.avatar {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* === INFO CENTRALIZADA === */
+.infoCenter {
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+    text-align: center; /* Texto centralizado */
+}
+
+.block {
+    display: flex;
+    flex-direction: column;
+}
+
+.label {
+    font-size: 1rem;
+    color: #999;
+    text-transform: uppercase;
+    font-weight: bold;
+    margin-bottom: 0.3rem;
+    letter-spacing: 0.5px;
+}
+
+.value {
+    font-size: 1.5rem;
+    color: #333;
+    font-weight: 600;
+}
+
+.valueBig {
+    font-size: 1.8rem;
+    color: #333;
+    font-weight: 800;
+}
+
+.separator {
+    height: 1px;
+    background-color: #eee;
+    width: 100%;
+}
+
+/* Filiais alinhadas à esquerda para facilitar leitura de lista */
+.blockFilial {
+    display: flex;
+    flex-direction: column;
+    text-align: left; 
 }
 
 .filiais {
     font-family: 'Lato', sans-serif;
     font-size: 1.4rem; 
-    color: #f46524; /* Laranja para destacar as filiais */
-    margin: 0.5rem 0 0 0;
+    color: #555;
     font-weight: 500;
-    
-    /* Lógica para cortar texto se for muito grande (3 linhas max) */
+    line-height: 1.4;
     display: -webkit-box;
-    -webkit-line-clamp: 3;
+    -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
 
+/* === BOTÃO === */
 .buttonCard {
-    background-color: #F46524;
-    margin-top: 2rem;
+    background-color: #333;
     color: #ffffff;
     padding: 1rem;
     text-align: center;
     border: none;
     border-radius: 0.5rem;
     cursor: pointer;
-    font-size: 1.6rem; 
+    font-size: 1.4rem; 
     font-weight: bold;
     font-family: 'Lato', sans-serif;
     width: 100%;
+    margin-top: auto;
     transition: background-color 0.2s;
 }
 
 .buttonCard:hover {
-    background-color: #d9531e;
+    background-color: #000;
 }

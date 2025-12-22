@@ -116,7 +116,16 @@ class EmprestimoViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     queryset = Emprestimo.objects.all()
     # Adicione search_fields se quiser pesquisar na barra de listagem de empréstimos futuramente
-    search_fields = ['ferramenta__nome', 'ferramenta__numero_serie', 'funcionario__nome', 'funcionario__matricula']
+    search_fields = [
+        'nome', 
+        'ferramenta__nome', 
+        'ferramenta__numero_serie', 
+        'funcionario__nome', 
+        'funcionario__matricula',
+        'data_emprestimo', # Permite buscar "2025-12-22"
+        'data_devolucao',
+        'observacoes'
+    ]
 
     def get_queryset(self):
         user = self.request.user
@@ -157,6 +166,15 @@ class ManutencaoViewSet(viewsets.ModelViewSet):
     serializer_class = ManutencaoSerializer
     permission_classes = [IsAuthenticated]
     queryset = Manutencao.objects.all()
+    search_fields = [
+        'nome', 
+        'ferramenta__nome', 
+        'ferramenta__numero_serie', 
+        'tipo', 
+        'data_inicio', 
+        'data_fim',
+        'observacoes'
+    ]
 
     def get_queryset(self):
         user = self.request.user

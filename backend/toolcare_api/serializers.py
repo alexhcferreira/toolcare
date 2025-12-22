@@ -198,7 +198,7 @@ class EmprestimoSerializer(serializers.ModelSerializer):
     class Meta: 
         model = Emprestimo
         fields = ['id', 'nome', 'ferramenta', 'ferramenta_nome', 'ferramenta_numero_serie', 'funcionario', 'funcionario_nome', 'funcionario_matricula', 'data_emprestimo', 'data_devolucao', 'observacoes', 'ativo']
-        read_only_fields = ['id', 'nome']
+        read_only_fields = ['id']
     
     def get_ferramenta_nome(self, obj): return obj.ferramenta.nome if obj.ferramenta else obj.nome_ferramenta_historico
     def get_ferramenta_numero_serie(self, obj): return obj.ferramenta.numero_serie if obj.ferramenta else obj.numero_serie_ferramenta_historico
@@ -208,7 +208,9 @@ class EmprestimoSerializer(serializers.ModelSerializer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if self.instance: 
-            self.fields['ferramenta'].read_only = True; self.fields['funcionario'].read_only = True; self.fields['data_emprestimo'].read_only = True
+            self.fields['ferramenta'].read_only = True
+            self.fields['funcionario'].read_only = True
+            self.fields['data_emprestimo'].read_only = True
         else: 
             self.fields['ativo'].read_only = True
 
@@ -242,7 +244,7 @@ class ManutencaoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Manutencao
         fields = ['id', 'nome', 'tipo', 'ferramenta', 'ferramenta_nome', 'ferramenta_numero_serie', 'observacoes', 'data_inicio', 'data_fim', 'ativo']
-        read_only_fields = ['id', 'nome']
+        read_only_fields = ['id']
     
     def get_ferramenta_nome(self, obj):
         return obj.ferramenta.nome if obj.ferramenta else obj.nome_ferramenta_historico
@@ -253,6 +255,7 @@ class ManutencaoSerializer(serializers.ModelSerializer):
         super().__init__(*args, **kwargs)
         if self.instance:
             self.fields['ferramenta'].read_only = True
+            self.fields['tipo'].read_only = True # <--- AGORA O TIPO É IMUTÁVEL
         else:
             self.fields['ativo'].read_only = True
 

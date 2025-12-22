@@ -1,0 +1,107 @@
+.removeMessage {
+    /* Posicionamento idêntico ao aviso de sucesso */
+    position: absolute;
+    top: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    
+    background-color: #F46524;
+    color: white;
+    font-family: 'Lato', sans-serif;
+    font-size: 1.8rem;
+    font-weight: 500;
+    
+    /* Layout */
+    padding: 1.5rem 3rem;
+    width: max-content;
+    min-width: 30rem;
+    
+    border-radius: 1rem;
+    display: flex;
+    flex-direction: column; /* Texto em cima, botões embaixo */
+    align-items: center;
+    justify-content: center;
+    gap: 1.5rem;
+    
+    /* Sombra profunda */
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    
+    z-index: 1000;
+    opacity: 0;
+    /* Animação apenas de entrada (não pode sumir sozinho) */
+    animation: fadeIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+.messageText {
+    margin: 0;
+    text-align: center;
+}
+
+.buttonContainer {
+    display: flex;
+    gap: 2rem;
+}
+
+/* Botão SIM: Branco para destaque */
+.confirmButton {
+    background-color: white;
+    color: #F46524;
+    border: none;
+    padding: 0.8rem 2.5rem;
+    border-radius: 0.5rem;
+    font-family: 'Lato', sans-serif;
+    font-weight: 700;
+    font-size: 1.6rem;
+    cursor: pointer;
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.confirmButton:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+
+/* Botão NÃO: Fundo escuro ou transparente com borda */
+.cancelButton {
+    background-color: rgba(0, 0, 0, 0.2); /* Fundo escuro sutil */
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    padding: 0.8rem 2.5rem;
+    border-radius: 0.5rem;
+    font-family: 'Lato', sans-serif;
+    font-weight: 400;
+    font-size: 1.6rem;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.cancelButton:hover {
+    background-color: rgba(0, 0, 0, 0.4);
+    border-color: white;
+}
+
+/* Animação de entrada vindo de cima */
+@keyframes fadeIn {
+    0% {
+        opacity: 0;
+        top: 0;
+    }
+    100% {
+        opacity: 1;
+        top: 2rem;
+    }
+}
+
+/* Responsividade */
+@media (max-width: 1024px) {
+    .removeMessage {
+        font-size: 1.6rem;
+        padding: 1.2rem 2rem;
+        min-width: 25rem;
+    }
+    
+    .confirmButton, .cancelButton {
+        padding: 0.6rem 2rem;
+        font-size: 1.4rem;
+    }
+}

@@ -2,33 +2,19 @@ import React, { useState, useEffect } from "react";
 import styles from "./card_ferramenta.module.css";
 import ModalFerramenta from "../../Modals/Ferramenta/ModalFerramenta";
 
-// Importe sua imagem local corretamente
 import defaultImg from "../../../assets/defaults/default_ferramenta.jpg"; 
 
 const CardFerramenta = ({ ferramenta, onUpdate }) => {
     const [showModal, setShowModal] = useState(false);
-    
-    // O estado inicial é SEMPRE a imagem padrão (carregamento instantâneo)
     const [imageSrc, setImageSrc] = useState(defaultImg);
 
-    // Efeito para carregar a imagem real em segundo plano
     useEffect(() => {
-        // Se a ferramenta tiver uma URL de foto...
         if (ferramenta.foto) {
             const img = new Image();
             img.src = ferramenta.foto;
-            
-            // Só troca a imagem quando o navegador terminar de baixar ela completa
-            img.onload = () => {
-                setImageSrc(ferramenta.foto);
-            };
-
-            // Se der erro no download, mantém a padrão (não precisa fazer nada, pois já é o estado inicial)
-            img.onerror = () => {
-                setImageSrc(defaultImg);
-            };
+            img.onload = () => setImageSrc(ferramenta.foto);
+            img.onerror = () => setImageSrc(defaultImg);
         } else {
-            // Se não tiver foto no objeto, garante a padrão
             setImageSrc(defaultImg);
         }
     }, [ferramenta.foto]);
@@ -46,29 +32,51 @@ const CardFerramenta = ({ ferramenta, onUpdate }) => {
     return (
         <>
             <div className={styles.card}>
-                <img 
-                    src={imageSrc} 
-                    alt={ferramenta.nome} 
-                    className={styles.cardImage}
-                    // Mantemos o onError aqui como segurança extra
-                    onError={(e) => { e.target.src = defaultImg; }}
-                />
                 
-                <div className={styles.fundo}>
-                    <div className={styles.infoContainer}>
-                        <p className={styles.nome}>{ferramenta.nome}</p>
-                        
-                        <div className={styles.detalhes}>
-                            <p className={styles.numSerie}>{ferramenta.numero_serie}</p>
-                            
-                            <p className={`${styles.status} ${styles[ferramenta.estado]}`}>
-                                {formatStatus(ferramenta.estado)}
-                            </p>
+                {/* CABEÇALHO LARANJA (Igual Funcionário) */}
+                <div className={styles.header}>
+                    <p className={styles.nome} title={ferramenta.nome}>
+                        {ferramenta.nome}
+                    </p>
+                    
+                    {/* Badge de Status no Cabeçalho */}
+                    <span className={`${styles.statusBadge} ${styles[ferramenta.estado]}`}>
+                        {formatStatus(ferramenta.estado)}
+                    </span>
+                </div>
+
+                <div className={styles.body}>
+                    
+                    {/* IMAGEM CENTRALIZADA (Arredondada, não circular) */}
+                    <div className={styles.imageWrapper}>
+                        <img 
+                            src={imageSrc} 
+                            alt={ferramenta.nome} 
+                            className={styles.cardImage}
+                            onError={(e) => { e.target.src = defaultImg; }}
+                        />
+                    </div>
+                    
+                    {/* INFO CENTRALIZADA */}
+                    <div className={styles.infoCenter}>
+                        <div className={styles.block}>
+                            <p className={styles.label}>Nº Série</p>
+                            <p className={styles.valueBig}>{ferramenta.numero_serie}</p>
                         </div>
+                    </div>
+
+                    <div className={styles.separator}></div>
+
+                    {/* DEPÓSITO (Alinhado a esquerda) */}
+                    <div className={styles.blockDeposito}>
+                        <p className={styles.label} style={{textAlign: 'left'}}>Localização</p>
+                        <p className={styles.deposito} title={ferramenta.deposito_nome}>
+                            {ferramenta.deposito_nome || "N/A"}
+                        </p>
                     </div>
                     
                     <button className={styles.buttonCard} onClick={() => setShowModal(true)}>
-                        VER MAIS
+                        VER DETALHES
                     </button>
                 </div>
             </div>
