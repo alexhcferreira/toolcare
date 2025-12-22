@@ -25,6 +25,7 @@ import Deposito from './pages/Inicial/Deposito/Deposito';
 import DepositoCadastro from './pages/Cadastro/Deposito/DepositoCadastro';
 import Usuario from './pages/Inicial/Usuario/Usuario';
 import UsuarioCadastro from './pages/Cadastro/Usuario/UsuarioCadastro';
+import ListaFerramentas from './pages/Testes/ListaFerramentas';
 
 // Importe a página de Acesso Negado
 import AcessoNegado from './pages/AcessoNegado/AcessoNegado';
@@ -79,6 +80,8 @@ const AppRoutes = () => {
                 <Route path="/emprestimo_inativo" element={<div style={{color:'white', padding: 20}}>Histórico de Inativos</div>} />
                 <Route path="/manutencoes" element={<Manutencao />} />
                 <Route path="/manutencao_cadastro" element={<ManutencaoCadastro />} />
+
+                <Route path="/teste_ferramentas" element={<ListaFerramentas />} />
 
                 {/* --- MÓDULOS RESTRITOS (Filiais e Usuários) --- */}
                 {/* Envolvemos as rotas no componente AdminOnly */}

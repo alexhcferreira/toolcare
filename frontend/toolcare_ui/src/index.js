@@ -4,14 +4,27 @@ import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 
+// 1. IMPORTS DO REACT QUERY
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+// 2. CRIA O CLIENTE DE CACHE
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false, // Não recarrega só de trocar de aba no windows
+      staleTime: 1000 * 60 * 5, // Os dados ficam "frescos" por 5 minutos (Instantâneo)
+    },
+  },
+});
+
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
-    <App />
+    {/* 3. ENVOLVE O APP COM O PROVIDER */}
+    <QueryClientProvider client={queryClient}>
+      <App />
+    </QueryClientProvider>
   </React.StrictMode>
 );
 
-// If you want to start measuring performance in your app, pass a function
-// to log results (for example: reportWebVitals(console.log))
-// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
 reportWebVitals();

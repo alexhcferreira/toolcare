@@ -4,9 +4,10 @@
     position: relative;
     display: flex;
     flex-direction: column;
-    align-items: center; /* Centraliza a barra no espaço disponível */
+    align-items: center;
     padding-top: 2.6rem; 
     z-index: 1; 
+    overflow: hidden; /* Garante que a barra da janela principal não apareça */
 }
 
 /* O botão + */
@@ -14,16 +15,15 @@
     color: white;
     font-size: 5rem;
     position: absolute;
-    /* Ajustado para 2.2rem conforme seu padrão novo */
     top: 2.2rem; 
     right: 4rem; 
-    
     cursor: pointer;
     text-decoration: none;
     line-height: 1;
     font-family: 'Lato', sans-serif;
     font-weight: 300;
     transform: translateY(-10%); 
+    z-index: 10;
 }
 
 .addButton:hover {
@@ -35,15 +35,13 @@
     width: 40%;
     min-width: 300px;
     height: 2.85rem; 
-    
-    /* REMOVIDO: margin-right: -25rem; (Isso estava quebrando a centralização) */
-    
     background-color: white;
     border-radius: 4rem;
     display: flex;
     align-items: center;
     padding: 0 1.5rem;
     box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    flex-shrink: 0; 
 }
 
 .searchInput {
@@ -62,21 +60,37 @@
     box-shadow: none;
 }
 
-.contentArea {
-    width: 100%;
-    display: flex;
-    justify-content: center;
-    margin-top: 4rem; 
-}
-
 /* REMOVER O 'X' AZUL DO INPUT SEARCH */
 input[type="search"]::-webkit-search-cancel-button {
     display: none;
     -webkit-appearance: none;
 }
-
 input[type="search"]::-ms-clear {
     display: none;
     width: 0;
     height: 0;
+}
+
+/* === ÁREA DOS CARDS === */
+.cardArea {
+    width: 100%;
+    flex: 1; /* Ocupa o resto da tela */
+    
+    display: flex;
+    flex-wrap: wrap; /* ISSO É O QUE FAZ FICAR UM DO LADO DO OUTRO */
+    justify-content: center;
+    gap: 3rem; 
+    
+    margin-top: 4rem; 
+    padding: 0 2rem 4rem 2rem; 
+    
+    /* CORREÇÃO DO CARD ESTICADO */
+    align-content: flex-start; 
+    align-items: flex-start;
+}
+
+/* Firefox Scrollbar (O resto é controlado pelo global .dark-scroll) */
+.cardArea {
+    scrollbar-width: auto;
+    scrollbar-color: #444 #2c2c2c;
 }

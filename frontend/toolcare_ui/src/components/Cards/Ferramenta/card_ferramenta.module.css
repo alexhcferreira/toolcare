@@ -1,0 +1,97 @@
+.card {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    width: 26rem; 
+    height: auto; 
+    min-height: 40rem; /* Garante altura mínima uniforme */
+    border-radius: 1rem;
+    overflow: hidden;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    background-color: #ffffff;
+    transition: transform 0.2s;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+
+.cardImage {
+    width: 100%;
+    height: 25rem;
+    object-fit: cover; 
+    background-color: #f0f0f0; /* Fundo cinza caso a imagem carregue devagar */
+}
+
+.fundo {
+    padding: 1.5rem; 
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    flex: 1;
+}
+
+.infoContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.nome {
+    font-family: 'Lato', sans-serif;
+    font-size: 2.2rem; 
+    font-weight: 900;
+    margin: 0;
+    color: #333;
+    line-height: 1.1;
+}
+
+.detalhes {
+    margin-top: 1rem;
+}
+
+.numSerie {
+    font-family: 'Lato', sans-serif;
+    font-size: 1.6rem; 
+    color: #666666;
+    margin: 0;
+}
+
+.status {
+    font-family: 'Lato', sans-serif;
+    font-size: 1.6rem; 
+    margin: 0.2rem 0 0 0;
+    font-weight: 500;
+}
+
+/* Cores de Status ATUALIZADAS */
+.DISPONIVEL { color: #28a745; } /* Verde */
+
+/* Emprestada agora é VERMELHO */
+.EMPRESTADA { color: #dc3545; } 
+
+/* Manutenção agora é LARANJA/AMARELO */
+.EM_MANUTENCAO { color: #ffc107; } 
+
+.INATIVA { color: #6c757d; } /* Cinza */
+
+.buttonCard {
+    background-color: #F46524;
+    margin-top: 2rem;
+    color: #ffffff;
+    padding: 1rem;
+    text-align: center;
+    border: none;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    font-size: 1.6rem; 
+    font-weight: bold;
+    font-family: 'Lato', sans-serif;
+    width: 100%;
+    transition: background-color 0.2s;
+}
+
+.buttonCard:hover {
+    background-color: #d9531e;
+}

@@ -1,0 +1,222 @@
+.overlay {
+    position: fixed;
+    top: 0; left: 0; width: 100vw; height: 100vh;
+    background-color: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(4px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+    animation: fadeIn 0.3s ease;
+}
+
+.modal {
+    background-color: #2c2c2c;
+    width: 90%;
+    max-width: 950px;
+    height: auto;
+    min-height: 40rem;
+    max-height: 95vh;
+    border-radius: 1.5rem;
+    display: flex;
+    overflow: hidden;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+    border: 1px solid #444;
+    align-items: stretch; /* Faz a imagem e o conteudo terem a mesma altura */
+}
+
+/* === IMAGEM ESQUERDA === */
+.imageContainer {
+    width: 35rem; 
+    min-height: 100%; /* Garante altura total */
+    position: relative;
+    background-color: #1a1a1a;
+    flex-shrink: 0; 
+}
+
+.imageContainer img {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0; left: 0;
+    object-fit: cover; 
+    display: block;
+}
+
+.uploadOverlay {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: 2;
+}
+.imageContainer:hover .uploadOverlay { opacity: 1; }
+.hiddenInput { display: none; }
+.cameraIcon { font-size: 4rem; margin-bottom: 1rem; color: #f46524; }
+
+/* === CONTEÚDO DIREITA === */
+.content {
+    flex: 1; 
+    /* IMPORTANTE: position relative para o botão X se alinhar AQUI dentro */
+    position: relative; 
+    padding: 3rem 3rem 3rem 3rem; 
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+    overflow-y: auto;
+    background-color: #2c2c2c;
+}
+
+/* === BOTÃO FECHAR (CORRIGIDO PARA NÃO ESTICAR) === */
+.closeBtn {
+    position: absolute;
+    top: 1.5rem;
+    right: 1.5rem;
+    
+    /* Força tamanho pequeno */
+    width: 3rem !important; 
+    height: 3rem !important;
+    padding: 0 !important;
+    
+    background-color: transparent !important; /* Remove fundo cinza */
+    border: none;
+    color: #888;
+    font-size: 2rem;
+    cursor: pointer;
+    z-index: 100;
+    
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s;
+}
+.closeBtn:hover { color: white; }
+
+/* TÍTULO */
+.title {
+    color: white;
+    font-family: 'Lato', sans-serif;
+    font-size: 2.2rem;
+    margin: 0 0 1rem 0;
+    border-bottom: 1px solid #444;
+    padding-bottom: 1rem;
+    padding-right: 3rem; /* Espaço para o X não cobrir o texto */
+}
+
+.infoGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.infoGroup label {
+    color: #888;
+    font-size: 1.1rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Textos e Inputs */
+.textValue {
+    color: white;
+    font-size: 2rem;
+    font-family: 'Lato', sans-serif;
+    margin: 0;
+    padding: 0.8rem 0;
+    line-height: 1.2;
+}
+
+.textHighlight {
+    color: #f46524;
+    font-size: 2rem;
+    font-weight: bold;
+    margin: 0;
+    padding: 0.8rem 0;
+}
+
+.input, .textarea, .disabledInput {
+    background-color: #444;
+    border: 1px solid #555;
+    padding: 0.8rem 1rem;
+    border-radius: 0.5rem;
+    color: white;
+    font-size: 1.6rem;
+    font-family: 'Lato', sans-serif;
+    width: 100%;
+    outline: none;
+}
+
+.textarea { resize: none; }
+.input:focus, .textarea:focus { border-color: #f46524; }
+
+.disabledInput {
+    background-color: #353535;
+    color: #777;
+    cursor: not-allowed;
+    border: 1px solid #333;
+}
+
+/* Botões de Ação */
+.actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.editBtn, .deleteBtn, .saveBtn, .reportBtn {
+    flex: 1;
+    padding: 1rem;
+    border: none;
+    border-radius: 0.5rem;
+    font-size: 1.3rem;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.8rem;
+    transition: filter 0.2s;
+    font-family: 'Lato', sans-serif;
+    min-width: 10rem;
+    color: white;
+}
+
+.saveBtn { background-color: #28a745; }
+.editBtn { background-color: #f46524; }
+.deleteBtn { background-color: #dc3545; }
+.reportBtn { background-color: #007bff; }
+
+.editBtn:hover, .deleteBtn:hover, .saveBtn:hover, .reportBtn:hover {
+    filter: brightness(1.1);
+}
+
+/* Responsividade Mobile */
+@media (max-width: 850px) {
+    .modal {
+        flex-direction: column;
+        height: auto;
+    }
+    .imageContainer {
+        width: 100%;
+        height: 25rem;
+        min-height: 25rem;
+    }
+    .imageContainer img {
+        position: relative;
+    }
+    .closeBtn {
+        top: 1rem; right: 1rem;
+        background-color: rgba(0,0,0,0.5) !important;
+        border-radius: 50%;
+        color: white;
+    }
+}

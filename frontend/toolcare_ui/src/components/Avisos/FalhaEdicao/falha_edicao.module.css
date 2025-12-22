@@ -1,0 +1,65 @@
+.successMessage {
+    /* MUDANÇA CHAVE: absolute para respeitar o container pai (área de conteúdo) */
+    position: absolute;
+    top: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    
+    background-color: #F46524;
+    color: white;
+    font-family: 'Lato', sans-serif;
+    font-size: 1.8rem;
+    font-weight: 500;
+    
+    /* Tamanho adaptável ao conteúdo */
+    padding: 1.5rem 3rem;
+    width: max-content;
+    min-width: 30rem;
+    
+    border-radius: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1.5rem; /* Espaço entre ícone e texto */
+    
+    /* Sombra profunda para dar profundidade */
+    
+    z-index: 1000;
+    opacity: 0;
+    animation: fadeInOut 2.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+.icon {
+    font-size: 2.5rem;
+}
+
+@keyframes fadeInOut {
+    0% {
+        opacity: 0;
+        top: 0; /* Começa um pouco mais acima */
+    }
+    /* Entrada rápida e elástica */
+    10% {
+        opacity: 1;
+        top: 2rem;
+    }
+    /* Fica visível para leitura */
+    90% {
+        opacity: 1;
+        top: 2rem;
+    }
+    /* Sai suavemente */
+    100% {
+        opacity: 0;
+        top: 1rem;
+    }
+}
+
+/* Garante que o texto não quebre em telas menores */
+@media (max-width: 1024px) {
+    .successMessage {
+        font-size: 1.6rem;
+        padding: 1.2rem 2rem;
+        min-width: 25rem;
+    }
+}

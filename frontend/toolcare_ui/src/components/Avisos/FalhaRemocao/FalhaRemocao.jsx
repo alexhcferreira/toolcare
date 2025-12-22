@@ -2,13 +2,13 @@ import React from "react";
 import styles from "../CSS/css_avisos.module.css";
 import { MdClose } from "react-icons/md";
 
-const FalhaCadastroComponent = () => {
+const FalhaRemocaoComponent = () => {
     return (
         <div className={styles.successMessage}>
             <MdClose className={styles.icon} />
-            <p>Não foi possível cadastrar</p>
+            <p>Não foi possível remover</p>
         </div>
     );
 };
 
-export default FalhaCadastroComponent;
+export default FalhaRemocaoComponent;

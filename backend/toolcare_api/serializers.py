@@ -133,7 +133,7 @@ class FuncionarioSerializer(serializers.ModelSerializer):
     def validate_cpf(self, value):
         # Verifica na tabela OPOSTA (Usuário)
         if Usuario.objects.filter(cpf=value).exists():
-            raise serializers.ValidationError("Este CPF já está em uso.")
+            raise serializers.ValidationError("Este CPF já está em uso por um usuário do sistema.")
         
         return value
 
@@ -141,9 +141,9 @@ class FuncionarioSerializer(serializers.ModelSerializer):
         super().__init__(*args, **kwargs)
         user = self.context['request'].user
         
-        if self.instance: 
-            self.fields['nome'].read_only = True; self.fields['matricula'].read_only = True; self.fields['cpf'].read_only = True
-        else: 
+        # CORREÇÃO: Removemos o bloqueio de edição de nome, matricula e cpf.
+        # Mantemos apenas o bloqueio do 'ativo' na criação.
+        if not self.instance: 
             self.fields['ativo'].read_only = True
         
         filial_queryset = self.context.get('filial_queryset')
@@ -166,6 +166,7 @@ class FerramentaSerializer(serializers.ModelSerializer):
     estado_display = serializers.CharField(source='get_estado_display', read_only=True)
     deposito_nome = serializers.CharField(source='deposito.nome', read_only=True)
     filial_nome = serializers.CharField(source='deposito.filial.nome', read_only=True)
+    
     class Meta:
         model = Ferramenta
         fields = ['id', 'nome', 'numero_serie', 'descricao', 'foto', 'data_aquisicao', 'estado', 'estado_display', 'deposito', 'deposito_nome', 'filial_nome']
@@ -174,8 +175,8 @@ class FerramentaSerializer(serializers.ModelSerializer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         user = self.context['request'].user
-        if self.instance: 
-            self.fields['nome'].read_only = True; self.fields['numero_serie'].read_only = True; self.fields['data_aquisicao'].read_only = True
+        
+        # REMOVIDO: O bloqueio de numero_serie e data_aquisicao foi retirado.
         
         if user.tipo == 'COORDENADOR':
             self.fields['deposito'].queryset = Deposito.objects.filter(filial__in=user.filiais.all())

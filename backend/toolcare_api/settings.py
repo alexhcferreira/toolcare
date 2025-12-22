@@ -96,7 +96,10 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
-    )
+    ),
+    'DEFAULT_PAGINATION_CLASS': 'toolcare_api.pagination.PaginacaoSobDemanda',
+    'PAGE_SIZE': 20,  # Carrega 20 itens por vez
+    'DEFAULT_FILTER_BACKENDS': ['rest_framework.filters.SearchFilter'],
 }
 
 CSRF_TRUSTED_ORIGINS = [
@@ -116,9 +119,9 @@ CORS_ALLOW_HEADERS = list(default_headers) + [
 ]
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=120), # 2 horas de usuario autenticado
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=720), # 12 horas de usuario autenticado
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
     'ROTATE_REFRESH_TOKENS': False,
     'BLACKLIST_AFTER_ROTATION': True,
-    'AUTH_HEADER_TYPES': ('Bearer',),
+    'AUTH_HEADER_TYPES': ('Bearer',), 
 }
