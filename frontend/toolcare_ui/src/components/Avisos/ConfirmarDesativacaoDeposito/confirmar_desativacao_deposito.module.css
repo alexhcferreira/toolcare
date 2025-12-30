@@ -1,0 +1,145 @@
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.85); /* Fundo bem escuro para focar */
+    backdrop-filter: blur(5px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    animation: fadeIn 0.3s ease;
+}
+
+.alertBox {
+    background-color: #2c2c2c;
+    width: 90%;
+    max-width: 480px;
+    padding: 3rem;
+    border-radius: 1.5rem;
+    border: 1px solid #444;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    
+    animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.iconContainer {
+    background-color: rgba(244, 101, 36, 0.1);
+    width: 7rem;
+    height: 7rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 2rem;
+}
+
+.icon {
+    font-size: 3.5rem;
+    color: #F46524; /* Laranja de alerta */
+}
+
+.title {
+    font-family: 'Lato', sans-serif;
+    font-size: 2.2rem;
+    font-weight: 800;
+    color: white;
+    margin: 0 0 1rem 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.content {
+    margin-bottom: 2.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.mainText {
+    font-family: 'Lato', sans-serif;
+    font-size: 1.6rem;
+    color: #e1e1e1;
+    margin: 0;
+}
+
+.subText {
+    font-family: 'Lato', sans-serif;
+    font-size: 1.4rem;
+    color: #999;
+    line-height: 1.5;
+    margin: 0;
+}
+
+.warning {
+    font-size: 1.3rem;
+    color: #F46524;
+    font-weight: bold;
+    margin-top: 0.5rem;
+}
+
+/* === BOTÕES === */
+.actions {
+    display: flex;
+    flex-direction: column; /* Botões um em cima do outro para dar ênfase */
+    width: 100%;
+    gap: 1rem;
+}
+
+/* Botão CANCELAR (NÃO) - Vermelho, Grande e Chamativo */
+.cancelBtn {
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    padding: 1.4rem;
+    border-radius: 0.8rem;
+    font-family: 'Lato', sans-serif;
+    font-size: 1.6rem;
+    font-weight: 800;
+    cursor: pointer;
+    width: 100%;
+    transition: transform 0.1s, background-color 0.2s;
+    box-shadow: 0 4px 6px rgba(220, 53, 69, 0.3);
+}
+
+.cancelBtn:hover {
+    background-color: #c82333;
+    transform: translateY(-2px);
+}
+
+/* Botão CONFIRMAR (SIM) - Discreto, Outline ou Cinza */
+.confirmBtn {
+    background-color: transparent;
+    color: #888;
+    padding: 1.2rem;
+    margin-top: 2.5rem;
+    border-radius: 0.8rem;
+    font-family: 'Lato', sans-serif;
+    font-size: 1.4rem;
+    font-weight: 600;
+    cursor: pointer;
+    width: 25%;
+    align-self: center;
+    transition: all 0.2s;
+}
+
+.confirmBtn:hover {
+    background-color: #2c2c2c;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideUp {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}

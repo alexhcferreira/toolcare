@@ -1,29 +1,80 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import styles from './cargo.module.css';
+// Reutilizando CSS de grid da filial (pois o layout é igual)
+import styles from '../Filial/filial.module.css'; 
+import api from '../../../services/api';
+import CardCargo from '../../../components/Cards/Cargo/CardCargo';
+import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 
 const Cargo = () => {
+    const [buscaInput, setBuscaInput] = useState('');
+    const [buscaDebounced, setBuscaDebounced] = useState('');
+    const queryClient = useQueryClient();
+
+    React.useEffect(() => {
+        const timer = setTimeout(() => setBuscaDebounced(buscaInput), 500);
+        return () => clearTimeout(timer);
+    }, [buscaInput]);
+
+    const fetchCargos = async ({ pageParam = 1 }) => {
+        const response = await api.get(`/api/cargos/`, {
+            params: { page: pageParam, search: buscaDebounced }
+        });
+        return response.data;
+    };
+
+    const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useInfiniteQuery({
+        queryKey: ['cargos', buscaDebounced],
+        queryFn: fetchCargos,
+        getNextPageParam: (lastPage) => {
+            if (!lastPage.next) return undefined;
+            const url = new URL(lastPage.next);
+            return url.searchParams.get('page');
+        },
+        keepPreviousData: true
+    });
+
+    const handleScroll = (e) => {
+        const { scrollTop, clientHeight, scrollHeight } = e.target;
+        if (scrollHeight - scrollTop <= clientHeight + 50 && hasNextPage && !isFetchingNextPage) {
+            fetchNextPage();
+        }
+    };
+
+    const handleUpdate = () => queryClient.invalidateQueries(['cargos']);
+
     return (
         <div className={styles.container}>
-            {/* Botão de Adicionar (+) no canto superior direito */}
-            <Link to="/cargo_cadastro" className={styles.addButton}>
-                +
-            </Link>
+            <Link to="/cargo_cadastro" className={styles.addButton}>+</Link>
 
-            {/* Barra de Pesquisa Centralizada */}
             <div className={styles.searchBarContainer}>
                 <input
                     className={styles.searchInput}
                     type='search'
-                    placeholder="Pesquisar..."
+                    placeholder="Pesquisar cargo..."
+                    value={buscaInput}
+                    onChange={(e) => setBuscaInput(e.target.value)}
                 />
             </div>
 
-            {/* Placeholder da Lista */}
-            <div className={styles.contentArea}>
-                <h2 style={{color: '#888', marginTop: '5rem', fontSize: '2rem'}}>
-                    Lista de Cargos
-                </h2>
+            <div className={`${styles.cardArea} dark-scroll`} onScroll={handleScroll}>
+                {isLoading ? (
+                    <p style={{color: 'white', fontSize: '1.6rem'}}>Carregando...</p>
+                ) : (
+                    data?.pages.map((page, i) => (
+                        <React.Fragment key={i}>
+                            {page.results.map(cargo => (
+                                <CardCargo key={cargo.id} cargo={cargo} onUpdate={handleUpdate} />
+                            ))}
+                        </React.Fragment>
+                    ))
+                )}
+                
+                {!isLoading && data?.pages[0].results.length === 0 && (
+                    <p style={{color: '#888', fontSize: '1.6rem'}}>Nenhum cargo encontrado.</p>
+                )}
+                
+                {isFetchingNextPage && <p style={{color: '#888', fontSize: '1.4rem'}}>Carregando...</p>}
             </div>
         </div>
     );

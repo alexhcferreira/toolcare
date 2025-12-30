@@ -5,24 +5,28 @@ import api from '../../../services/api';
 import CadastradoComponent from '../../../components/Avisos/Cadastrado/Cadastrado';
 import FalhaCadastroComponent from '../../../components/Avisos/FalhaCadastro/FalhaCadastro';
 
-// 1. IMPORTS DO REACT-SELECT
 import Select from 'react-select';
 import { customSelectStyles } from '../../../components/CustomSelect/selectStyles';
 
+// 1. IMPORTAR O HOOK
+import { useQueryClient } from '@tanstack/react-query';
+
 const FerramentaCadastro = () => {
+    // 2. INSTANCIAR O CLIENTE
+    const queryClient = useQueryClient();
+
     const [formData, setFormData] = useState({
         nome: '',
         numero_serie: '',
         descricao: '',
         data_aquisicao: '',
-        deposito: null, // Alterado para null (objeto do select)
+        deposito: null, 
         foto: null
     });
 
     const [fileName, setFileName] = useState('');
-    const [depositosOptions, setDepositosOptions] = useState([]); // Opções formatadas
+    const [depositosOptions, setDepositosOptions] = useState([]);
     
-    // Controle visual da data
     const [inputType, setInputType] = useState('text');
 
     const [showSuccess, setShowSuccess] = useState(false);
@@ -32,9 +36,9 @@ const FerramentaCadastro = () => {
         const loadDepositos = async () => {
             try {
                 const response = await api.get('/api/depositos/');
-                
-                // 2. FORMATAÇÃO PARA O REACT-SELECT
-                const formatados = response.data.map(d => ({
+                const lista = response.data.results || response.data;
+
+                const formatados = lista.map(d => ({
                     value: d.id,
                     label: `${d.nome} ${d.filial_nome ? `(${d.filial_nome})` : ''}`
                 }));
@@ -52,7 +56,6 @@ const FerramentaCadastro = () => {
         setFormData({ ...formData, [name]: value });
     };
 
-    // 3. HANDLER ESPECÍFICO PARA O SELECT
     const handleDepositoChange = (selectedOption) => {
         setFormData({ ...formData, deposito: selectedOption });
     };
@@ -67,9 +70,7 @@ const FerramentaCadastro = () => {
 
     const formatFileName = (name) => {
         if (!name) return '';
-        if (name.length > 40) {
-            return name.substring(0, 37) + '...'; 
-        }
+        if (name.length > 40) return name.substring(0, 37) + '...'; 
         return name;
     };
 
@@ -82,11 +83,8 @@ const FerramentaCadastro = () => {
     const handleSubmit = async (event) => {
         event.preventDefault();
 
-        // Validação manual do Select (já que o required do HTML não funciona no componente customizado)
         if (!formData.deposito) {
-            // Opcional: Você pode setar um erro visual aqui ou deixar o backend reclamar
-            // Mas como é obrigatório, o ideal é validar antes.
-            alert("Selecione um depósito!"); // Ou use um estado de erro mais elegante
+            alert("Selecione um depósito!"); 
             return;
         }
 
@@ -94,8 +92,6 @@ const FerramentaCadastro = () => {
         dataToSend.append('nome', formData.nome);
         dataToSend.append('numero_serie', formData.numero_serie);
         dataToSend.append('descricao', formData.descricao);
-        
-        // 4. EXTRAÇÃO DO ID DO OBJETO SELECT
         dataToSend.append('deposito', formData.deposito.value);
         
         if (formData.data_aquisicao) {
@@ -112,6 +108,9 @@ const FerramentaCadastro = () => {
             });
             
             console.log("Ferramenta cadastrada:", response.data);
+
+            // 3. INVALIDAR O CACHE
+            queryClient.invalidateQueries(['ferramentas']);
 
             setShowSuccess(true);
             setShowError(false);
@@ -172,7 +171,6 @@ const FerramentaCadastro = () => {
 
                     <div className={styles.row}>
                         
-                        {/* SELECT COM PESQUISA (Substituindo o antigo) */}
                         <div className={styles.inputGroup}>
                             <label className={styles.label}>
                                 Depósito <span className={styles.asterisk}>*</span>
@@ -185,7 +183,7 @@ const FerramentaCadastro = () => {
                                 value={formData.deposito}
                                 onChange={handleDepositoChange}
                                 isClearable
-                                required // Nota: O required no React-Select as vezes precisa de validação manual no submit
+                                required 
                             />
                         </div>
 

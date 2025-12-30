@@ -9,7 +9,13 @@ import FalhaCadastroComponent from '../../../components/Avisos/FalhaCadastro/Fal
 import Select from 'react-select';
 import { customSelectStyles } from '../../../components/CustomSelect/selectStyles';
 
+// 2. IMPORTAR O HOOK DO REACT QUERY
+import { useQueryClient } from '@tanstack/react-query';
+
 const DepositoCadastro = () => {
+    // 3. INSTANCIAR O CLIENTE
+    const queryClient = useQueryClient();
+
     const [formData, setFormData] = useState({
         nome: '',
         filial: null // Objeto { value, label }
@@ -25,8 +31,10 @@ const DepositoCadastro = () => {
             try {
                 const response = await api.get('/api/filiais/');
                 
-                // 2. FORMATAÇÃO: NOME - CIDADE
-                const formatados = response.data.map(f => ({
+                // Tratamento para paginação (caso exista)
+                const lista = response.data.results || response.data;
+
+                const formatados = lista.map(f => ({
                     value: f.id,
                     label: `${f.nome} - ${f.cidade}`
                 }));
@@ -44,7 +52,6 @@ const DepositoCadastro = () => {
         setFormData({ ...formData, [name]: value });
     };
 
-    // 3. HANDLER ESPECÍFICO PARA O SELECT
     const handleFilialChange = (selectedOption) => {
         setFormData({ ...formData, filial: selectedOption });
     };
@@ -69,6 +76,9 @@ const DepositoCadastro = () => {
             const response = await api.post('/api/depositos/', dataToSend);
             
             console.log("Depósito cadastrado com sucesso:", response.data);
+
+            // 4. INVALIDAR O CACHE DA LISTA DE DEPÓSITOS
+            queryClient.invalidateQueries(['depositos']);
 
             setShowSuccess(true);
             setShowError(false);

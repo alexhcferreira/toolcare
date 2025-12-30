@@ -9,6 +9,9 @@ import FalhaCadastroComponent from '../../../components/Avisos/FalhaCadastro/Fal
 import Select from 'react-select';
 import { customSelectStyles } from '../../../components/CustomSelect/selectStyles';
 
+// 1. IMPORTAR O HOOK DO REACT QUERY
+import { useQueryClient } from '@tanstack/react-query';
+
 // FUNÇÃO AUXILIAR DE VALIDAÇÃO DE CPF (Algoritmo padrão)
 const validarCPF = (cpf) => {
     cpf = cpf.replace(/[^\d]+/g, '');
@@ -46,6 +49,9 @@ const validarCPF = (cpf) => {
 
 const UsuarioCadastro = () => {
     const { user } = useContext(AuthContext);
+    
+    // 2. INSTANCIAR O CLIENTE
+    const queryClient = useQueryClient();
 
     const [formData, setFormData] = useState({
         nome: '',
@@ -75,7 +81,10 @@ const UsuarioCadastro = () => {
         const loadFiliais = async () => {
             try {
                 const response = await api.get('/api/filiais/');
-                const formatados = response.data.map(f => ({
+                // Trata paginação se houver
+                const lista = response.data.results || response.data;
+                
+                const formatados = lista.map(f => ({
                     value: f.id,
                     label: `${f.nome} - ${f.cidade}`
                 }));
@@ -129,8 +138,7 @@ const UsuarioCadastro = () => {
             const ehValido = validarCPF(cpfLimpo);
             setCpfInvalido(!ehValido);
         } else {
-            // Enquanto não tem 11 digitos, não considera inválido ainda (para não irritar enquanto digita)
-            // Ou se preferir, pode marcar como inválido se perder o foco.
+            // Enquanto não tem 11 digitos, não considera inválido ainda
             setCpfInvalido(false);
         }
     }, [formData.cpf]);
@@ -187,6 +195,9 @@ const UsuarioCadastro = () => {
         try {
             const response = await api.post('/api/usuarios/', dataToSend);
             console.log("Usuário cadastrado:", response.data);
+
+            // 3. INVALIDAR O CACHE DA LISTA DE USUÁRIOS
+            queryClient.invalidateQueries(['usuarios']);
 
             setShowSuccess(true);
             setShowError(false);

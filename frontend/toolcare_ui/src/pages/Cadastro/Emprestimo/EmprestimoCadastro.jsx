@@ -5,23 +5,28 @@ import api from '../../../services/api';
 import CadastradoComponent from '../../../components/Avisos/Cadastrado/Cadastrado';
 import FalhaCadastroComponent from '../../../components/Avisos/FalhaCadastro/FalhaCadastro';
 
-// 1. IMPORTAR O REACT-SELECT E OS ESTILOS
 import Select from 'react-select';
 import { customSelectStyles } from '../../../components/CustomSelect/selectStyles';
 
+// 1. IMPORTAR O HOOK DO REACT QUERY
+import { useQueryClient } from '@tanstack/react-query';
+
 const EmprestimoCadastro = () => {
+    // 2. INSTANCIAR O CLIENTE
+    const queryClient = useQueryClient();
+
     const hoje = new Date().toISOString().split('T')[0];
 
     const [formData, setFormData] = useState({
-        ferramenta: null, // Agora guardamos o objeto {value, label} ou null
+        ferramenta: null, 
         funcionario: null,
         data_emprestimo: hoje, 
         observacoes: ''
     });
 
     const [ferramentasOptions, setFerramentasOptions] = useState([]);
-    const [todosFuncionarios, setTodosFuncionarios] = useState([]); // Dados brutos
-    const [funcionariosOptions, setFuncionariosOptions] = useState([]); // Opções formatadas para o select
+    const [todosFuncionarios, setTodosFuncionarios] = useState([]); 
+    const [funcionariosOptions, setFuncionariosOptions] = useState([]); 
     
     const [isFuncionarioDisabled, setIsFuncionarioDisabled] = useState(true);
     const [inputType, setInputType] = useState('text');
@@ -38,19 +43,19 @@ const EmprestimoCadastro = () => {
                     api.get('/api/funcionarios/')
                 ]);
 
-                // 2. CONVERTER DADOS DA API PARA O FORMATO DO REACT-SELECT
-                // Formato exigido: { value: ID, label: "O QUE APARECE NA TELA", ...outrosDados }
-                
-                const ferramentasFormatadas = ferramentasRes.data
+                // Tratamento para paginação (results ou data)
+                const getList = (res) => res.data.results || res.data;
+
+                const ferramentasFormatadas = getList(ferramentasRes)
                     .filter(f => f.estado === 'DISPONIVEL')
                     .map(f => ({
                         value: f.id,
                         label: `${f.nome} - ${f.numero_serie}`,
-                        filial_nome: f.filial_nome // Guardamos a filial aqui pra usar no filtro
+                        filial_nome: f.filial_nome 
                     }));
                 
                 setFerramentasOptions(ferramentasFormatadas);
-                setTodosFuncionarios(funcionariosRes.data); // Guarda cru para filtrar depois
+                setTodosFuncionarios(getList(funcionariosRes)); 
                 
             } catch (error) {
                 console.error("Erro ao carregar dados:", error);
@@ -59,16 +64,12 @@ const EmprestimoCadastro = () => {
         loadDados();
     }, []);
 
-    // 3. LÓGICA DE FILTRO ATUALIZADA PARA O NOVO SELECT
     const handleFerramentaChange = (selectedOption) => {
-        // selectedOption é o objeto { value: 1, label: "Alicate...", filial_nome: "Usina SP" }
-        
-        setFormData({ ...formData, ferramenta: selectedOption, funcionario: null }); // Reseta funcionario
+        setFormData({ ...formData, ferramenta: selectedOption, funcionario: null }); 
         
         if (selectedOption) {
             const nomeFilialFerramenta = selectedOption.filial_nome;
 
-            // Filtra os funcionários brutos e converte para o formato do select
             const filtrados = todosFuncionarios
                 .filter(func => func.filiais_detalhes.some(filial => filial.nome === nomeFilialFerramenta))
                 .map(func => ({
@@ -102,7 +103,6 @@ const EmprestimoCadastro = () => {
     const handleSubmit = async (event) => {
         event.preventDefault();
 
-        // Validação simples
         if (!formData.ferramenta || !formData.funcionario) {
             setMsgErro("Selecione a ferramenta e o funcionário.");
             setShowError(true);
@@ -117,8 +117,6 @@ const EmprestimoCadastro = () => {
             return;
         }
 
-        // 4. PREPARAR DADOS PARA O BACKEND
-        // O backend espera apenas o ID (ex: "ferramenta": 5), mas nosso state tem o objeto completo.
         const payload = {
             ferramenta: formData.ferramenta.value,
             funcionario: formData.funcionario.value,
@@ -130,10 +128,12 @@ const EmprestimoCadastro = () => {
             const response = await api.post('/api/emprestimos/', payload);
             console.log("Empréstimo realizado:", response.data);
 
+            // 3. INVALIDAR O CACHE
+            queryClient.invalidateQueries(['emprestimos']);
+
             setShowSuccess(true);
             setShowError(false);
             
-            // Reset
             setFormData({
                 ferramenta: null,
                 funcionario: null,
@@ -143,7 +143,6 @@ const EmprestimoCadastro = () => {
             setIsFuncionarioDisabled(true);
             setInputType('text');
 
-            // Remove a ferramenta da lista de opções
             setFerramentasOptions(prev => prev.filter(f => f.value !== response.data.ferramenta));
 
             setTimeout(() => setShowSuccess(false), 3000);
@@ -170,7 +169,6 @@ const EmprestimoCadastro = () => {
                 >
                     <p id={styles.cadastro}>Novo Empréstimo</p>
                     
-                    {/* SELECT DE FERRAMENTA (REACT-SELECT) */}
                     <div className={styles.inputGroup}>
                         <label className={styles.label}>
                             Ferramenta <span className={styles.asterisk}>*</span>
@@ -178,16 +176,15 @@ const EmprestimoCadastro = () => {
                         <Select
                             placeholder="Selecione a ferramenta"
                             noOptionsMessage={() => "Nenhuma ferramenta disponível"}
-                            styles={customSelectStyles} // Aplica nosso estilo Dark
+                            styles={customSelectStyles} 
                             options={ferramentasOptions}
                             value={formData.ferramenta}
                             onChange={handleFerramentaChange}
-                            isClearable // Permite limpar a seleção com um 'x'
+                            isClearable 
                             required
                         />
                     </div>
 
-                    {/* SELECT DE FUNCIONÁRIO (REACT-SELECT) */}
                     <div className={styles.inputGroup}>
                         <label className={styles.label}>
                             Funcionário <span className={styles.asterisk}>*</span>
@@ -204,8 +201,6 @@ const EmprestimoCadastro = () => {
                             required
                         />
                     </div>
-                    
-                    {/* ... (O RESTO DO CÓDIGO PERMANECE IGUAL: DATA E OBSERVAÇÕES) ... */}
                     
                     <div className={styles.inputGroup}>
                         <label className={styles.label}>

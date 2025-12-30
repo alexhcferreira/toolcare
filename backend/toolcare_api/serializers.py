@@ -4,7 +4,19 @@ from rest_framework.validators import UniqueValidator
 from .models import Usuario, Filial, Deposito, Setor, Cargo, Funcionario, Ferramenta, Emprestimo, Manutencao
 import datetime
 
+class FilialSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Filial
+        fields = ['id', 'nome', 'cidade', 'ativo']
+        read_only_fields = ['id']
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not self.instance:
+            self.fields['ativo'].read_only = True
+
 class UsuarioSerializer(serializers.ModelSerializer):
+
+    filiais_detalhes = FilialSerializer(source='filiais', many=True, read_only=True)
 
     cpf = serializers.CharField(
         validators=[
@@ -17,7 +29,7 @@ class UsuarioSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Usuario
-        fields = ['id', 'nome', 'cpf', 'tipo', 'filiais', 'ativo', 'password']
+        fields = ['id', 'nome', 'cpf', 'tipo', 'filiais', 'filiais_detalhes', 'ativo', 'password']
         extra_kwargs = {
             'password': {'write_only': True}
         }
@@ -73,15 +85,7 @@ class UsuarioSerializer(serializers.ModelSerializer):
             user.filiais.set(filiais_data)
         return user
 
-class FilialSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Filial
-        fields = ['id', 'nome', 'cidade', 'ativo']
-        read_only_fields = ['id']
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        if not self.instance:
-            self.fields['ativo'].read_only = True
+
 
 class DepositoSerializer(serializers.ModelSerializer):
     filial_nome = serializers.CharField(source='filial.nome', read_only=True)

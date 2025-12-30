@@ -1,0 +1,73 @@
+.card {
+    display: flex;
+    align-items: center;
+    width: 100%; /* Mais largo que os verticais, mas curto */
+    height: 8rem; /* Altura fixa compacta */
+    
+    background-color: #353535; /* Fundo Escuro */
+    border-radius: 1rem;
+    padding: 0 2rem;
+    gap: 1.5rem;
+    
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    cursor: pointer;
+    transition: transform 0.2s, background-color 0.2s;
+    border: 1px solid #444;
+}
+
+.card:hover {
+    transform: translateY(-3px);
+    background-color: #404040; /* Clareia levemente no hover */
+    border-color: #f46524; /* Borda laranja no hover */
+}
+
+/* Ícone Redondo */
+.iconContainer {
+    width: 4.5rem;
+    height: 4.5rem;
+    background-color: rgba(244, 101, 36, 0.1); /* Laranja transparente */
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #f46524;
+    font-size: 2rem;
+    flex-shrink: 0;
+}
+
+.infoContainer {
+    flex: 1; /* Ocupa o espaço do meio */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden; /* Evita que texto grande quebre o layout */
+}
+
+.nome {
+    font-family: 'Lato', sans-serif;
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: white;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.cidade, .filial, .descricao {
+    font-family: 'Lato', sans-serif;
+    font-size: 1.3rem;
+    color: #bbb;
+    margin: 0.3rem 0 0 0;
+    font-weight: 400;
+}
+
+/* Seta na direita */
+.action {
+    color: #666;
+    font-size: 1.4rem;
+    transition: color 0.2s;
+}
+
+.card:hover .action {
+    color: #f46524; /* Fica laranja quando passa o mouse no card */
+}

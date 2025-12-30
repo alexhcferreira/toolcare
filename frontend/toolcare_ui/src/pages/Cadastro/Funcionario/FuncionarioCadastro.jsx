@@ -8,6 +8,9 @@ import FalhaCadastroComponent from '../../../components/Avisos/FalhaCadastro/Fal
 import Select from 'react-select';
 import { customSelectStyles } from '../../../components/CustomSelect/selectStyles';
 
+// 1. IMPORTAR O HOOK DO REACT QUERY
+import { useQueryClient } from '@tanstack/react-query';
+
 // FUNÇÃO AUXILIAR DE VALIDAÇÃO DE CPF
 const validarCPF = (cpf) => {
     cpf = cpf.replace(/[^\d]+/g, '');
@@ -36,6 +39,9 @@ const validarCPF = (cpf) => {
 };
 
 const FuncionarioCadastro = () => {
+    // 2. INSTANCIAR O CLIENTE
+    const queryClient = useQueryClient();
+
     const [formData, setFormData] = useState({
         nome: '',
         matricula: '',
@@ -68,17 +74,20 @@ const FuncionarioCadastro = () => {
                     api.get('/api/cargos/')
                 ]);
 
-                setFiliaisOptions(filiaisRes.data.map(f => ({
+                // Tratamento para paginação (results ou data)
+                const getList = (res) => res.data.results || res.data;
+
+                setFiliaisOptions(getList(filiaisRes).map(f => ({
                     value: f.id,
                     label: `${f.nome} - ${f.cidade}`
                 })));
 
-                setSetoresOptions(setoresRes.data.map(s => ({
+                setSetoresOptions(getList(setoresRes).map(s => ({
                     value: s.id,
                     label: s.nome_setor
                 })));
 
-                setCargosOptions(cargosRes.data.map(c => ({
+                setCargosOptions(getList(cargosRes).map(c => ({
                     value: c.id,
                     label: c.nome_cargo
                 })));
@@ -110,7 +119,6 @@ const FuncionarioCadastro = () => {
     const handleChange = (event) => {
         const { name, value } = event.target;
         
-        // Limpa erro de backend se usuário digitar no CPF
         if (name === 'cpf') {
             setCpfExistenteMsg('');
         }
@@ -123,7 +131,6 @@ const FuncionarioCadastro = () => {
         }
     };
 
-    // ... (Handlers do React Select mantidos) ...
     const handleSetorChange = (selectedOption) => {
         setFormData({ ...formData, setor: selectedOption });
     };
@@ -151,10 +158,8 @@ const FuncionarioCadastro = () => {
     const handleSubmit = async (event) => {
         event.preventDefault();
 
-        // Bloqueio de Front-end para CPF inválido
         if (cpfInvalido) return;
 
-        // Valida comprimento do CPF antes de enviar
         const cpfLimpo = formData.cpf.replace(/\D/g, '');
         if (cpfLimpo.length !== 11) {
             setCpfInvalido(true);
@@ -190,6 +195,9 @@ const FuncionarioCadastro = () => {
             });
             console.log("Funcionário cadastrado:", response.data);
             
+            // 3. INVALIDAR O CACHE DA LISTA
+            queryClient.invalidateQueries(['funcionarios']);
+
             setShowSuccess(true);
             setShowError(false);
             
@@ -199,19 +207,15 @@ const FuncionarioCadastro = () => {
                 foto: null
             });
             setFileName('');
-            setCpfExistenteMsg(''); // Reset do erro
+            setCpfExistenteMsg(''); 
             
             setTimeout(() => setShowSuccess(false), 3000);
         } catch (error) {
-            // Lógica de tratamento de erro do CPF vindo do Backend
             if (error.response?.data?.cpf) {
                 let msg = error.response.data.cpf[0];
-                
-                // Tradução manual caso o backend mande em inglês e não tenhamos alterado o serializer
                 if (msg.includes("already exists")) {
                     msg = "Este CPF já está cadastrado no sistema.";
                 }
-                
                 setCpfExistenteMsg(msg);
             } else {
                 const msg = error.response?.data?.detail || "Erro ao cadastrar";
@@ -258,16 +262,13 @@ const FuncionarioCadastro = () => {
                                 placeholder='000.000.000-00'
                                 value={formData.cpf} onChange={handleChange}
                                 maxLength={14}
-                                // Aplica borda vermelha se tiver erro
                                 className={cpfInvalido || cpfExistenteMsg ? styles.inputError : ''}
                             />
                             
-                            {/* Erro Matemático */}
                             {cpfInvalido && (
                                 <span className={styles.msgErroInput}>CPF inválido.</span>
                             )}
 
-                            {/* Erro de Duplicidade Backend */}
                             {cpfExistenteMsg && (
                                 <span className={styles.msgErroInput}>{cpfExistenteMsg}</span>
                             )}

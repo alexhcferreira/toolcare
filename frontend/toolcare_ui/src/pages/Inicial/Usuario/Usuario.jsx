@@ -1,26 +1,73 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import styles from './usuario.module.css';
+import styles from '../Funcionario/funcionario.module.css'; // Copie o CSS de funcionario.module.css
+import api from '../../../services/api';
+import CardUsuario from '../../../components/Cards/Usuario/CardUsuario';
+import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 
 const Usuario = () => {
+    const [busca, setBusca] = useState('');
+    const queryClient = useQueryClient();
+
+    const fetchUsuarios = async ({ pageParam = 1 }) => {
+        const response = await api.get(`/api/usuarios/`, {
+            params: { page: pageParam, search: busca }
+        });
+        return response.data;
+    };
+
+    const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useInfiniteQuery({
+        queryKey: ['usuarios', busca],
+        queryFn: fetchUsuarios,
+        getNextPageParam: (lastPage) => {
+            if (!lastPage.next) return undefined;
+            const url = new URL(lastPage.next);
+            return url.searchParams.get('page');
+        },
+        keepPreviousData: true
+    });
+
+    const handleScroll = (e) => {
+        const { scrollTop, clientHeight, scrollHeight } = e.target;
+        if (scrollHeight - scrollTop <= clientHeight + 50 && hasNextPage && !isFetchingNextPage) {
+            fetchNextPage();
+        }
+    };
+
+    const handleUpdate = () => {
+        queryClient.invalidateQueries(['usuarios']);
+    };
+
     return (
         <div className={styles.container}>
-            <Link to="/usuario_cadastro" className={styles.addButton}>
-                +
-            </Link>
+            <Link to="/usuario_cadastro" className={styles.addButton}>+</Link>
 
             <div className={styles.searchBarContainer}>
                 <input
                     className={styles.searchInput}
                     type='search'
-                    placeholder="Pesquisar..."
+                    placeholder="Pesquisar usuário (Nome, CPF)..."
+                    value={busca}
+                    onChange={(e) => setBusca(e.target.value)}
                 />
             </div>
 
-            <div className={styles.contentArea}>
-                <h2 style={{color: '#888', marginTop: '5rem', fontSize: '2rem'}}>
-                    Lista de Usuários
-                </h2>
+            <div className={`${styles.cardArea} dark-scroll`} onScroll={handleScroll}>
+                {isLoading ? (
+                    <p style={{color: 'white', fontSize: '1.6rem'}}>Carregando...</p>
+                ) : (
+                    data?.pages.map((page, i) => (
+                        <React.Fragment key={i}>
+                            {page.results.map(u => (
+                                <CardUsuario key={u.id} usuario={u} onUpdate={handleUpdate} />
+                            ))}
+                        </React.Fragment>
+                    ))
+                )}
+                {!isLoading && data?.pages[0].results.length === 0 && (
+                    <p style={{color: '#888', fontSize: '1.6rem'}}>Nenhum usuário encontrado.</p>
+                )}
+                {isFetchingNextPage && <p style={{color: '#888', fontSize: '1.4rem'}}>Carregando...</p>}
             </div>
         </div>
     );

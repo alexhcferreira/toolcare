@@ -1,29 +1,79 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import styles from './filial.module.css';
+import styles from './filial.module.css'; // Crie copiando de funcionario.module.css
+import api from '../../../services/api';
+import CardFilial from '../../../components/Cards/Filial/CardFilial';
+import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 
 const Filial = () => {
+    const [buscaInput, setBuscaInput] = useState('');
+    const [buscaDebounced, setBuscaDebounced] = useState('');
+    const queryClient = useQueryClient();
+
+    React.useEffect(() => {
+        const timer = setTimeout(() => setBuscaDebounced(buscaInput), 500);
+        return () => clearTimeout(timer);
+    }, [buscaInput]);
+
+    const fetchFiliais = async ({ pageParam = 1 }) => {
+        const response = await api.get(`/api/filiais/`, {
+            params: { page: pageParam, search: buscaDebounced }
+        });
+        return response.data;
+    };
+
+    const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useInfiniteQuery({
+        queryKey: ['filiais', buscaDebounced],
+        queryFn: fetchFiliais,
+        getNextPageParam: (lastPage) => {
+            if (!lastPage.next) return undefined;
+            const url = new URL(lastPage.next);
+            return url.searchParams.get('page');
+        },
+        keepPreviousData: true
+    });
+
+    const handleScroll = (e) => {
+        const { scrollTop, clientHeight, scrollHeight } = e.target;
+        if (scrollHeight - scrollTop <= clientHeight + 50 && hasNextPage && !isFetchingNextPage) {
+            fetchNextPage();
+        }
+    };
+
+    const handleUpdate = () => queryClient.invalidateQueries(['filiais']);
+
     return (
         <div className={styles.container}>
-            {/* Botão de Adicionar (+) redirecionando para cadastro de filial */}
-            <Link to="/filial_cadastro" className={styles.addButton}>
-                +
-            </Link>
+            <Link to="/filial_cadastro" className={styles.addButton}>+</Link>
 
-            {/* Barra de Pesquisa Centralizada */}
             <div className={styles.searchBarContainer}>
                 <input
                     className={styles.searchInput}
                     type='search'
-                    placeholder="Pesquisar..."
+                    placeholder="Pesquisar filial..."
+                    value={buscaInput}
+                    onChange={(e) => setBuscaInput(e.target.value)}
                 />
             </div>
 
-            {/* Placeholder da Lista */}
-            <div className={styles.contentArea}>
-                <h2 style={{color: '#888', marginTop: '5rem', fontSize: '2rem'}}>
-                    Lista de Filiais
-                </h2>
+            <div className={`${styles.cardArea} dark-scroll`} onScroll={handleScroll}>
+                {isLoading ? (
+                    <p style={{color: 'white', fontSize: '1.6rem'}}>Carregando...</p>
+                ) : (
+                    data?.pages.map((page, i) => (
+                        <React.Fragment key={i}>
+                            {page.results.map(filial => (
+                                <CardFilial key={filial.id} filial={filial} onUpdate={handleUpdate} />
+                            ))}
+                        </React.Fragment>
+                    ))
+                )}
+                
+                {!isLoading && data?.pages[0].results.length === 0 && (
+                    <p style={{color: '#888', fontSize: '1.6rem'}}>Nenhuma filial encontrada.</p>
+                )}
+                
+                {isFetchingNextPage && <p style={{color: '#888', fontSize: '1.4rem'}}>Carregando...</p>}
             </div>
         </div>
     );

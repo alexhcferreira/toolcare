@@ -4,6 +4,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework.decorators import action
 from rest_framework import filters # <--- Adicione este import no topo
 from rest_framework.response import Response
+from django.db import transaction
 from rest_framework import status
 from .serializers import CustomTokenObtainPairSerializer
 from .models import Usuario, Filial, Deposito, Setor, Cargo, Funcionario, Ferramenta, Emprestimo, Manutencao
@@ -14,11 +15,14 @@ class UsuarioViewSet(viewsets.ModelViewSet):
     queryset = Usuario.objects.all().order_by('nome')
     serializer_class = UsuarioSerializer
     permission_classes = [IsAuthenticated, UsuarioPermissions]
+    search_fields = ['nome', 'cpf', 'tipo', 'filiais__nome', 'filiais__cidade']
+    
 
 class FilialViewSet(viewsets.ModelViewSet):
     serializer_class = FilialSerializer
     permission_classes = [IsAuthenticated, IsAdminOrMaximo|ReadOnly]
     queryset = Filial.objects.all()
+    search_fields = ['nome', 'cidade']
 
     def get_queryset(self):
         user = self.request.user
@@ -26,10 +30,58 @@ class FilialViewSet(viewsets.ModelViewSet):
             return user.filiais.all().order_by('nome')
         return Filial.objects.all().order_by('nome')
 
+    @action(detail=True, methods=['patch'])
+    def desativar(self, request, pk=None):
+        filial = self.get_object()
+        
+        # 1. VERIFICAÇÃO DE PERMISSÃO
+        if request.user.tipo != 'MAXIMO':
+            return Response(
+                {"error": "Apenas usuários do tipo MÁXIMO podem desativar filiais."}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # 2. VERIFICAÇÃO DE SEGURANÇA (Ferramentas em uso)
+        ferramentas_em_uso = Ferramenta.objects.filter(
+            deposito__filial__id=filial.id,
+            estado__in=['EMPRESTADA', 'EM_MANUTENCAO']
+        )
+
+        # Se houver bloqueio, retorna 400 IMEDIATAMENTE (com a lista)
+        if ferramentas_em_uso.exists():
+            lista_ferramentas = [
+                f"{f.nome} ({f.numero_serie}) - {f.get_estado_display()}" 
+                for f in ferramentas_em_uso
+            ]
+            return Response(
+                {
+                    "error": "Bloqueio: Existem ferramentas ativas.",
+                    "lista_ferramentas": lista_ferramentas
+                }, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # --- NOVO: MODO PREVIEW (SIMULAÇÃO) ---
+        # Se o frontend mandou ?preview=true, paramos aqui.
+        # Se chegou até aqui, significa que NÃO tem ferramentas bloqueando.
+        if request.query_params.get('preview') == 'true':
+            return Response({"status": "Liberado para desativação"}, status=status.HTTP_200_OK)
+
+        # 3. EXECUÇÃO EM CASCATA (Só acontece se não for preview)
+        with transaction.atomic():
+            filial.ativo = False
+            filial.save()
+            filial.depositos.update(ativo=False)
+            Ferramenta.objects.filter(deposito__filial=filial).update(estado='INATIVA')
+            filial.funcionarios.clear() 
+
+        return Response({"status": "Filial e itens associados desativados com sucesso."})
+
 class DepositoViewSet(viewsets.ModelViewSet):
     serializer_class = DepositoSerializer
     permission_classes = [IsAuthenticated, IsAdminOrMaximo|ReadOnly]
     queryset = Deposito.objects.all()
+    search_fields = ['nome', 'filial__nome', 'filial__cidade']
 
     def get_queryset(self):
         user = self.request.user
@@ -37,15 +89,62 @@ class DepositoViewSet(viewsets.ModelViewSet):
             return Deposito.objects.filter(filial__in=user.filiais.all()).order_by('nome')
         return Deposito.objects.all().order_by('nome')
 
+    @action(detail=True, methods=['patch'])
+    def desativar(self, request, pk=None):
+        deposito = self.get_object()
+        
+        # 1. VERIFICAÇÃO DE PERMISSÃO (Seguindo lógica de Filial: Só Máximo)
+        if request.user.tipo != 'MAXIMO':
+            return Response(
+                {"error": "Apenas usuários do tipo MÁXIMO podem desativar depósitos."}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # 2. VERIFICAÇÃO DE SEGURANÇA (Ferramentas em uso NESTE depósito)
+        ferramentas_em_uso = Ferramenta.objects.filter(
+            deposito=deposito,
+            estado__in=['EMPRESTADA', 'EM_MANUTENCAO']
+        )
+
+        if ferramentas_em_uso.exists():
+            lista_ferramentas = [
+                f"{f.nome} ({f.numero_serie}) - {f.get_estado_display()}" 
+                for f in ferramentas_em_uso
+            ]
+            return Response(
+                {
+                    "error": "Bloqueio: Existem ferramentas ativas neste depósito.",
+                    "lista_ferramentas": lista_ferramentas
+                }, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # --- MODO PREVIEW ---
+        if request.query_params.get('preview') == 'true':
+            return Response({"status": "Liberado para desativação"}, status=status.HTTP_200_OK)
+
+        # 3. EXECUÇÃO EM CASCATA
+        with transaction.atomic():
+            # A. Desativa o Depósito
+            deposito.ativo = False
+            deposito.save()
+
+            # B. Inativa Ferramentas deste depósito
+            Ferramenta.objects.filter(deposito=deposito).update(estado='INATIVA')
+
+        return Response({"status": "Depósito e ferramentas associadas desativados com sucesso."})
+
 class SetorViewSet(viewsets.ModelViewSet):
     queryset = Setor.objects.all().order_by('nome_setor')
     serializer_class = SetorSerializer
     permission_classes = [IsAuthenticated, IsAdminOrMaximo|ReadOnly]
+    search_fields = ['nome_setor', 'descricao_setor']
 
 class CargoViewSet(viewsets.ModelViewSet):
     queryset = Cargo.objects.all().order_by('nome_cargo')
     serializer_class = CargoSerializer
     permission_classes = [IsAuthenticated, IsAdminOrMaximo|ReadOnly]
+    search_fields = ['nome_cargo', 'descricao_cargo']
 
 class FuncionarioViewSet(viewsets.ModelViewSet):
     serializer_class = FuncionarioSerializer

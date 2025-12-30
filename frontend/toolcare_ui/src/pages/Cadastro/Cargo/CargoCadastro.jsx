@@ -5,7 +5,13 @@ import api from '../../../services/api';
 import CadastradoComponent from '../../../components/Avisos/Cadastrado/Cadastrado';
 import FalhaCadastroComponent from '../../../components/Avisos/FalhaCadastro/FalhaCadastro';
 
+// 1. IMPORTAR O HOOK DO REACT QUERY
+import { useQueryClient } from '@tanstack/react-query';
+
 const CargoCadastro = () => {
+    // 2. INSTANCIAR O CLIENTE
+    const queryClient = useQueryClient();
+
     const [formData, setFormData] = useState({
         nome_cargo: '',
         descricao_cargo: ''
@@ -13,6 +19,7 @@ const CargoCadastro = () => {
 
     const [showSuccess, setShowSuccess] = useState(false);
     const [showError, setShowError] = useState(false);
+    const [msgErro, setMsgErro] = useState('');
 
     const handleChange = (event) => {
         const { name, value } = event.target;
@@ -30,12 +37,22 @@ const CargoCadastro = () => {
             
             console.log("Cargo cadastrado com sucesso:", response.data);
 
+            // 3. INVALIDAR O CACHE DA LISTA DE CARGOS
+            queryClient.invalidateQueries(['cargos']);
+
             setShowSuccess(true);
             setShowError(false);
             setFormData({ nome_cargo: '', descricao_cargo: '' });
             setTimeout(() => setShowSuccess(false), 3000);
         } catch (error) {
-            console.error('Erro ao cadastrar:', error.response ? error.response.data : error.message);
+            // Tratamento de erro aprimorado
+            const msg = error.response?.data?.nome_cargo 
+                ? error.response.data.nome_cargo[0] 
+                : (error.response?.data?.detail || "Erro ao cadastrar");
+
+            console.error('Erro ao cadastrar:', error.response?.data);
+            setMsgErro(msg);
+
             setShowError(true);
             setShowSuccess(false);
             setTimeout(() => setShowError(false), 3000);
@@ -79,7 +96,7 @@ const CargoCadastro = () => {
                             type='text'
                             id={styles.descricaoCargo}
                             name='descricao_cargo'
-                            placeholder='Digite a descrição'
+                            placeholder='Digite a descrição (Opcional)'
                             value={formData.descricao_cargo}
                             onChange={handleChange}
                         />
@@ -91,7 +108,7 @@ const CargoCadastro = () => {
                 </form>
 
                 {showSuccess && <CadastradoComponent />}
-                {showError && <FalhaCadastroComponent />}
+                {showError && <FalhaCadastroComponent message={msgErro} />}
             </div>
         </div>
     );

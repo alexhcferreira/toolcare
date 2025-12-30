@@ -85,7 +85,7 @@ const Funcionario = () => {
                 )}
 
                 {!isLoading && data?.pages[0].results.length === 0 && (
-                    <p style={{color: '#888', fontSize: '1.6rem'}}>Buscando funcionários...</p>
+                    <p style={{color: '#888', fontSize: '1.6rem'}}>Nenhum funcionário encontrado.</p>
                 )}
 
                 {isFetchingNextPage && (

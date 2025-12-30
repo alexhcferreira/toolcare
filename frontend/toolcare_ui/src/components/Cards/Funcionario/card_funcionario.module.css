@@ -22,7 +22,7 @@
     padding: 1.5rem;
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.8rem;
     color: white;
     text-align: center; /* Centralizei o nome no cabeçalho também */
 }

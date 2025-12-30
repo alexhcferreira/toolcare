@@ -5,7 +5,13 @@ import api from '../../../services/api';
 import CadastradoComponent from '../../../components/Avisos/Cadastrado/Cadastrado';
 import FalhaCadastroComponent from '../../../components/Avisos/FalhaCadastro/FalhaCadastro';
 
+// 1. IMPORTAR O HOOK DO REACT QUERY
+import { useQueryClient } from '@tanstack/react-query';
+
 const FilialCadastro = () => {
+    // 2. INSTANCIAR O CLIENTE
+    const queryClient = useQueryClient();
+
     const [formData, setFormData] = useState({
         nome: '',
         cidade: ''
@@ -29,6 +35,10 @@ const FilialCadastro = () => {
             const response = await api.post('/api/filiais/', formData);
             
             console.log("Filial cadastrada com sucesso:", response.data);
+
+            // 3. A MÁGICA: INVALIDAR O CACHE DA LISTA
+            // Isso força a tela de listagem a buscar os dados novos assim que você entrar nela
+            queryClient.invalidateQueries(['filiais']);
 
             setShowSuccess(true);
             setShowError(false);
@@ -56,7 +66,6 @@ const FilialCadastro = () => {
                 >
                     <p id={styles.cadastro}>Cadastro de Filial</p>
                     
-                    {/* Campo Nome */}
                     <div className={styles.inputGroup}>
                         <label className={styles.label}>
                             Nome da Filial <span className={styles.asterisk}>*</span>
@@ -68,7 +77,6 @@ const FilialCadastro = () => {
                         />
                     </div>
                     
-                    {/* Campo Cidade */}
                     <div className={styles.inputGroup}>
                         <label className={styles.label}>
                             Cidade <span className={styles.asterisk}>*</span>
