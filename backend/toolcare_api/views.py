@@ -11,6 +11,10 @@ from .models import Usuario, Filial, Deposito, Setor, Cargo, Funcionario, Ferram
 from .serializers import UsuarioSerializer, FilialSerializer, DepositoSerializer, SetorSerializer, CargoSerializer, FuncionarioSerializer, FerramentaSerializer, EmprestimoSerializer, ManutencaoSerializer
 from .permissions import IsAdminOrMaximo, UsuarioPermissions, ReadOnly
 
+def remover_acentos(texto):
+    if not texto: return ''
+    return ''.join(c for c in unicodedata.normalize('NFD', texto) if unicodedata.category(c) != 'Mn')
+
 class UsuarioViewSet(viewsets.ModelViewSet):
     queryset = Usuario.objects.all().order_by('nome')
     serializer_class = UsuarioSerializer
@@ -180,35 +184,90 @@ class FuncionarioViewSet(viewsets.ModelViewSet):
 class FerramentaViewSet(viewsets.ModelViewSet):
     serializer_class = FerramentaSerializer
     permission_classes = [IsAuthenticated]
-    queryset = Ferramenta.objects.all()
+    queryset = Ferramenta.objects.all().order_by('nome')
+    
+    # Mantemos o search_fields para a busca "Global"
     search_fields = [
-        'nome', 
-        'numero_serie', 
-        'descricao', 
-        'deposito__nome',           # Busca pelo nome do depósito
-        'deposito__filial__nome',   # Busca pelo nome da filial
-        'deposito__filial__cidade',
-        'estado',  # Busca pela cidade
-        'data_aquisicao'
+        'nome', 'numero_serie', 'descricao', 
+        'deposito__nome', 'deposito__filial__nome', 'deposito__filial__cidade',
+        'estado', 'data_aquisicao'
     ]
 
-    def get_queryset(self):
-        user = self.request.user
-        if user.tipo == 'COORDENADOR':
-            return Ferramenta.objects.filter(deposito__filial__in=user.filiais.all()).order_by('nome')
-        return Ferramenta.objects.all().order_by('nome')
-    
     @action(detail=True, methods=['patch'])
     def desativar(self, request, pk=None):
         ferramenta = self.get_object()
         
-        # Opcional: Impedir se estiver emprestada
-        if ferramenta.estado == Ferramenta.EstadoChoices.EMPRESTADA:
-             return Response({"error": "Não é possível inativar uma ferramenta emprestada."}, status=status.HTTP_400_BAD_REQUEST)
+        # Validação de segurança no backend também
+        if ferramenta.estado != Ferramenta.EstadoChoices.DISPONIVEL:
+             return Response(
+                 {"error": "Apenas ferramentas disponíveis podem ser desativadas."}, 
+                 status=status.HTTP_400_BAD_REQUEST
+             )
              
+        # Executa a desativação
         ferramenta.estado = Ferramenta.EstadoChoices.INATIVA
         ferramenta.save()
+        
         return Response({"status": "Ferramenta inativada com sucesso"})
+
+    def get_queryset(self):
+        user = self.request.user
+        queryset = Ferramenta.objects.all().order_by('nome')
+
+        if user.tipo == 'COORDENADOR':
+            queryset = queryset.filter(deposito__filial__in=user.filiais.all())
+
+        # 1. Filtro de Filial
+        filial_id = self.request.query_params.get('filial')
+        if filial_id:
+            queryset = queryset.filter(deposito__filial__id=filial_id)
+
+        # 2. Filtros Específicos
+        search_field = self.request.query_params.get('search_field')
+        search_value = self.request.query_params.get('search_value') # Vem como string, ex: "Furadeira" ou "xx/05/2024"
+
+        if search_field and search_value:
+            
+            # --- LÓGICA DE DATA AVANÇADA (xx/xx/xxxx) ---
+            if search_field == 'data_aquisicao' and '/' in search_value:
+                try:
+                    # Espera formato: dia/mes/ano (pode ter xx)
+                    partes = search_value.split('/')
+                    if len(partes) == 3:
+                        dia, mes, ano = partes
+                        
+                        if dia.lower() != 'xx':
+                            queryset = queryset.filter(data_aquisicao__day=int(dia))
+                        if mes.lower() != 'xx':
+                            queryset = queryset.filter(data_aquisicao__month=int(mes))
+                        if ano.lower() != 'xxxx':
+                            queryset = queryset.filter(data_aquisicao__year=int(ano))
+                except ValueError:
+                    pass # Se digitar errado, ignora
+
+            # --- LÓGICA DE ESTADO (Múltiplo) ---
+            elif search_field == 'estado':
+                # O frontend manda: "DISPONIVEL,EM_MANUTENCAO"
+                estados = search_value.split(',')
+                queryset = queryset.filter(estado__in=estados)
+
+            # --- LÓGICA DE TEXTO (Nome, Serial, etc) ---
+            else:
+                campos_map = {
+                    'nome': 'nome__icontains',
+                    'numero_serie': 'numero_serie__icontains',
+                    'descricao': 'descricao__icontains',
+                    'deposito': 'deposito__nome__icontains',
+                }
+                
+                if search_field in campos_map:
+                    lookup = campos_map[search_field]
+                    # Tenta filtrar direto
+                    # (Nota: SQLite não suporta unaccent nativo facil, entao usamos icontains simples aqui)
+                    # Para ignorar acentos de verdade, precisaria do PostgreSQL.
+                    queryset = queryset.filter(**{lookup: search_value})
+
+        return queryset
 
 class EmprestimoViewSet(viewsets.ModelViewSet):
     serializer_class = EmprestimoSerializer
