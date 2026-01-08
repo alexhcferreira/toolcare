@@ -11,6 +11,7 @@ from .models import Usuario, Filial, Deposito, Setor, Cargo, Funcionario, Ferram
 from .serializers import UsuarioSerializer, FilialSerializer, DepositoSerializer, SetorSerializer, CargoSerializer, FuncionarioSerializer, FerramentaSerializer, EmprestimoSerializer, ManutencaoSerializer
 from .permissions import IsAdminOrMaximo, UsuarioPermissions, ReadOnly
 
+
 def remover_acentos(texto):
     if not texto: return ''
     return ''.join(c for c in unicodedata.normalize('NFD', texto) if unicodedata.category(c) != 'Mn')
@@ -159,9 +160,57 @@ class FuncionarioViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
+        queryset = Funcionario.objects.all().order_by('nome')
+
         if user.tipo == 'COORDENADOR':
-            return Funcionario.objects.filter(filiais__in=user.filiais.all()).distinct().order_by('nome')
-        return Funcionario.objects.all().order_by('nome')
+            queryset = queryset.filter(filiais__in=user.filiais.all()).distinct()
+
+        # 1. Filtro de Filial
+        filial_id = self.request.query_params.get('filial')
+        if filial_id:
+            queryset = queryset.filter(filiais__id=filial_id)
+
+        # 2. Filtros Específicos
+        search_field = self.request.query_params.get('search_field')
+        search_value = self.request.query_params.get('search_value')
+
+        if search_field and search_value:
+            
+            # Mapeamento de Campos
+            campos_map = {
+                'nome': 'nome__icontains',
+                'matricula': 'matricula__icontains',
+                'cpf': 'cpf__icontains',
+                'cargo': 'cargo__nome_cargo__icontains',
+                'setor': 'setor__nome_setor__icontains',
+                'filial_nome': 'filiais__nome__icontains'
+            }
+
+            # Lógica 1: Busca por Nulos ("Sem", "Vazio")
+            if search_value.lower() in ['sem', 'nenhum', 'null', 'vazio']:
+                if search_field == 'cargo':
+                    queryset = queryset.filter(cargo__isnull=True)
+                elif search_field == 'setor':
+                    queryset = queryset.filter(setor__isnull=True)
+                
+                # Se for outro campo que nao aceita nulo (ex: nome), ignora ou busca texto "sem"
+                elif search_field in campos_map:
+                     lookup = campos_map[search_field]
+                     queryset = queryset.filter(**{lookup: search_value})
+
+            # Lógica 2: Busca por Texto Normal
+            elif search_field in campos_map:
+                lookup = campos_map[search_field]
+                queryset = queryset.filter(**{lookup: search_value}).distinct()
+
+        # 3. Filtros de Ativos/Inativos
+        if self.request.query_params.get('somente_ativos') == 'true':
+            queryset = queryset.filter(ativo=True)
+            
+        if self.request.query_params.get('somente_inativos') == 'true':
+            queryset = queryset.filter(ativo=False)
+
+        return queryset
     
     def get_serializer_context(self):
         context = super().get_serializer_context()
@@ -222,9 +271,9 @@ class FerramentaViewSet(viewsets.ModelViewSet):
         if filial_id:
             queryset = queryset.filter(deposito__filial__id=filial_id)
 
-        # 2. Filtros Específicos
+        # 2. Filtros Específicos (Busca)
         search_field = self.request.query_params.get('search_field')
-        search_value = self.request.query_params.get('search_value') # Vem como string, ex: "Furadeira" ou "xx/05/2024"
+        search_value = self.request.query_params.get('search_value')
 
         if search_field and search_value:
             
@@ -266,6 +315,12 @@ class FerramentaViewSet(viewsets.ModelViewSet):
                     # (Nota: SQLite não suporta unaccent nativo facil, entao usamos icontains simples aqui)
                     # Para ignorar acentos de verdade, precisaria do PostgreSQL.
                     queryset = queryset.filter(**{lookup: search_value})
+
+        if self.request.query_params.get('somente_disponiveis_emprestadas_manutencao') == 'true':
+            queryset = queryset.exclude(estado='INATIVA')
+
+        if self.request.query_params.get('somente_inativas') == 'true':
+            queryset = queryset.filter(estado='INATIVA')
 
         return queryset
 

@@ -1,23 +1,77 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import styles from './funcionario.module.css'; // Pode copiar o CSS de ferramenta.module.css
+import styles from '../Ferramenta/ferramenta.module.css'; // Usando CSS próprio (cópia do ferramenta)
 import api from '../../../services/api';
 import CardFuncionario from '../../../components/Cards/Funcionario/CardFuncionario';
-
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 
+import Select from 'react-select';
+import { filterSelectStyles } from '../../../components/CustomSelect/filterSelectStyles';
+
 const Funcionario = () => {
-    const [busca, setBusca] = useState('');
+    const [buscaInput, setBuscaInput] = useState('');
+    const [buscaDebounced, setBuscaDebounced] = useState('');
+    
+    // Filtros
+    const [filialSelecionada, setFilialSelecionada] = useState(null); 
+    const [campoBusca, setCampoBusca] = useState({ value: 'global', label: 'Todos os campos' });
+
+    const [listaFiliais, setListaFiliais] = useState([]);
     const queryClient = useQueryClient();
 
-    const fetchFuncionarios = async ({ pageParam = 1 }) => {
-        const response = await api.get(`/api/funcionarios/`, {
-            params: {
-                page: pageParam,
-                search: busca
+    // Opções de Campos para Funcionário
+    const opcoesCampos = [
+        { value: 'global', label: 'Todos os campos' },
+        { value: 'nome', label: 'Nome' },
+        { value: 'matricula', label: 'Matrícula' },
+        { value: 'cpf', label: 'CPF' },
+        { value: 'cargo', label: 'Cargo' },
+        { value: 'setor', label: 'Setor' }
+    ];
+
+    useEffect(() => {
+        const loadFiliais = async () => {
+            try {
+                const response = await api.get('/api/filiais/');
+                const dados = response.data.results || response.data;
+                const formatados = dados.map(f => ({ value: f.id, label: f.nome }));
+                formatados.unshift({ value: '', label: 'Todas as Filiais' });
+                setListaFiliais(formatados);
+            } catch (error) {
+                console.error("Erro ao carregar filiais", error);
             }
-        });
-        return response.data;
+        };
+        loadFiliais();
+    }, []);
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setBuscaDebounced(buscaInput);
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [buscaInput]);
+
+    const fetchFuncionarios = async ({ pageParam = 1 }) => {
+        const params = { 
+            page: pageParam,
+            somente_ativos: 'true' // <--- Filtro de Ativos
+        };
+
+        if (filialSelecionada && filialSelecionada.value) {
+            params.filial = filialSelecionada.value;
+        }
+
+        if (buscaDebounced) {
+            if (campoBusca.value === 'global') {
+                params.search = buscaDebounced;
+            } else {
+                params.search_field = campoBusca.value;
+                params.search_value = buscaDebounced;
+            }
+        }
+
+        const response = await api.get(`/api/funcionarios/`, { params });
+        return response.data; 
     };
 
     const {
@@ -25,16 +79,16 @@ const Funcionario = () => {
         fetchNextPage,
         hasNextPage,
         isFetchingNextPage,
-        isLoading
+        isLoading, 
     } = useInfiniteQuery({
-        queryKey: ['funcionarios', busca],
+        queryKey: ['funcionarios', buscaDebounced, filialSelecionada, campoBusca], 
         queryFn: fetchFuncionarios,
         getNextPageParam: (lastPage) => {
             if (!lastPage.next) return undefined;
             const url = new URL(lastPage.next);
             return url.searchParams.get('page');
         },
-        keepPreviousData: true
+        keepPreviousData: true 
     });
 
     const handleScroll = (e) => {
@@ -50,49 +104,71 @@ const Funcionario = () => {
 
     return (
         <div className={styles.container}>
-            <Link to="/funcionario_cadastro" className={styles.addButton}>
-                +
-            </Link>
+            <Link to="/funcionario_cadastro" className={styles.addButton}>+</Link>
 
             <div className={styles.searchBarContainer}>
-                <input
-                    className={styles.searchInput}
-                    type='search'
-                    placeholder="Pesquisar funcionário (Nome, CPF, Matrícula)..."
-                    value={busca}
-                    onChange={(e) => setBusca(e.target.value)}
-                />
+                
+                {/* 1. FILIAL */}
+                <div style={{ width: '220px' }}>
+                    <Select
+                        options={listaFiliais}
+                        value={filialSelecionada}
+                        onChange={setFilialSelecionada}
+                        placeholder="Todas as Filiais"
+                        styles={filterSelectStyles}
+                        isSearchable={false} 
+                    />
+                </div>
+
+                <div className={styles.divider}></div>
+
+                {/* 2. CATEGORIA */}
+                <div style={{ width: '200px' }}>
+                    <Select
+                        options={opcoesCampos}
+                        value={campoBusca}
+                        onChange={(opt) => {
+                            setCampoBusca(opt);
+                            setBuscaInput(''); 
+                        }}
+                        styles={filterSelectStyles}
+                        isSearchable={false}
+                    />
+                </div>
+
+                <div className={styles.divider}></div>
+
+                {/* 3. INPUT TEXTO */}
+                <div style={{ flex: 1 }}>
+                    <input
+                        className={styles.searchInput}
+                        type='search'
+                        placeholder={
+                            campoBusca.value === 'global' ? "Pesquisar..." : 
+                            `Filtrar por ${campoBusca.label}...`
+                        }
+                        value={buscaInput}
+                        onChange={(e) => setBuscaInput(e.target.value)}
+                    />
+                </div>
             </div>
 
-            <div 
-                className={`${styles.cardArea} dark-scroll`} 
-                onScroll={handleScroll}
-            >
+            <div className={`${styles.cardArea} dark-scroll`} onScroll={handleScroll}>
                 {isLoading ? (
                     <p style={{color: 'white', fontSize: '1.6rem'}}>Carregando...</p>
                 ) : (
                     data?.pages.map((page, i) => (
                         <React.Fragment key={i}>
                             {page.results.map(func => (
-                                <CardFuncionario 
-                                    key={func.id} 
-                                    funcionario={func} 
-                                    onUpdate={handleUpdate} 
-                                />
+                                <CardFuncionario key={func.id} funcionario={func} onUpdate={handleUpdate} />
                             ))}
                         </React.Fragment>
                     ))
                 )}
-
                 {!isLoading && data?.pages[0].results.length === 0 && (
                     <p style={{color: '#888', fontSize: '1.6rem'}}>Nenhum funcionário encontrado.</p>
                 )}
-
-                {isFetchingNextPage && (
-                    <p style={{width: '100%', textAlign: 'center', color: '#888', fontSize: '1.4rem', padding: '2rem'}}>
-                        Buscando funcionários...
-                    </p>
-                )}
+                {isFetchingNextPage && <p style={{color: '#888', fontSize: '1.4rem'}}>Carregando...</p>}
             </div>
         </div>
     );

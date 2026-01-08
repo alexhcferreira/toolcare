@@ -65,8 +65,17 @@ const Ferramenta = () => {
         return () => clearTimeout(timer);
     }, [buscaInput]);
 
+    useEffect(() => {
+        if (campoBusca.value !== 'estado') {
+            setStatusSelecionados([]);
+        }
+    }, [campoBusca]);
+
     const fetchFerramentas = async ({ pageParam = 1 }) => {
-        const params = { page: pageParam };
+        const params = { 
+            page: pageParam,
+            somente_disponiveis_emprestadas_manutencao: 'true' 
+        };
 
         // 1. Filtro de Filial
         if (filialSelecionada && filialSelecionada.value) {
@@ -102,7 +111,7 @@ const Ferramenta = () => {
         isFetchingNextPage,
         isLoading, 
     } = useInfiniteQuery({
-        queryKey: ['ferramentas', buscaDebounced, filialSelecionada, campoBusca, statusSelecionados], 
+        queryKey: ['ferramentas', buscaDebounced, filialSelecionada, campoBusca, statusSelecionados, 'somente_disponiveis_emprestadas_manutencao'], 
         queryFn: fetchFerramentas,
         getNextPageParam: (lastPage) => {
             if (!lastPage.next) return undefined;
