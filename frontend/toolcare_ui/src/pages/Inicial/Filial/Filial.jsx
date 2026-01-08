@@ -17,13 +17,17 @@ const Filial = () => {
 
     const fetchFiliais = async ({ pageParam = 1 }) => {
         const response = await api.get(`/api/filiais/`, {
-            params: { page: pageParam, search: buscaDebounced }
+            params: { 
+                page: pageParam, 
+                search: buscaDebounced,
+                somente_ativos: 'true' // <--- FILTRO ADICIONADO
+            }
         });
         return response.data;
     };
 
     const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useInfiniteQuery({
-        queryKey: ['filiais', buscaDebounced],
+        queryKey: ['filiais', buscaDebounced, 'somente_ativos'],
         queryFn: fetchFiliais,
         getNextPageParam: (lastPage) => {
             if (!lastPage.next) return undefined;
@@ -58,7 +62,7 @@ const Filial = () => {
 
             <div className={`${styles.cardArea} dark-scroll`} onScroll={handleScroll}>
                 {isLoading ? (
-                    <p style={{color: 'white', fontSize: '1.6rem'}}>Carregando...</p>
+                    <p style={{color: 'white', fontSize: '1.6rem'}} className={styles.emptyMessage}>Carregando...</p>
                 ) : (
                     data?.pages.map((page, i) => (
                         <React.Fragment key={i}>
@@ -70,10 +74,10 @@ const Filial = () => {
                 )}
                 
                 {!isLoading && data?.pages[0].results.length === 0 && (
-                    <p style={{color: '#888', fontSize: '1.6rem'}}>Nenhuma filial encontrada.</p>
+                    <p style={{color: '#888', fontSize: '1.6rem'}} className={styles.emptyMessage}>Nenhuma filial encontrada.</p>
                 )}
                 
-                {isFetchingNextPage && <p style={{color: '#888', fontSize: '1.4rem'}}>Carregando...</p>}
+                {isFetchingNextPage && <p style={{color: '#888', fontSize: '1.4rem'}} className={styles.emptyMessage}>Carregando...</p>}
             </div>
         </div>
     );

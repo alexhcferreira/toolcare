@@ -18,13 +18,13 @@ const Cargo = () => {
 
     const fetchCargos = async ({ pageParam = 1 }) => {
         const response = await api.get(`/api/cargos/`, {
-            params: { page: pageParam, search: buscaDebounced }
+            params: { page: pageParam, search: buscaDebounced, somente_ativos: 'true' }
         });
         return response.data;
     };
 
     const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useInfiniteQuery({
-        queryKey: ['cargos', buscaDebounced],
+        queryKey: ['cargos', buscaDebounced, 'somente_ativos'],
         queryFn: fetchCargos,
         getNextPageParam: (lastPage) => {
             if (!lastPage.next) return undefined;
@@ -59,7 +59,7 @@ const Cargo = () => {
 
             <div className={`${styles.cardArea} dark-scroll`} onScroll={handleScroll}>
                 {isLoading ? (
-                    <p style={{color: 'white', fontSize: '1.6rem'}}>Carregando...</p>
+                    <p style={{color: 'white', fontSize: '1.6rem'}} className={styles.emptyMessage}>Carregando...</p>
                 ) : (
                     data?.pages.map((page, i) => (
                         <React.Fragment key={i}>
@@ -71,10 +71,10 @@ const Cargo = () => {
                 )}
                 
                 {!isLoading && data?.pages[0].results.length === 0 && (
-                    <p style={{color: '#888', fontSize: '1.6rem'}}>Nenhum cargo encontrado.</p>
+                    <p style={{color: '#888', fontSize: '1.6rem'}} className={styles.emptyMessage}>Nenhum cargo encontrado.</p>
                 )}
                 
-                {isFetchingNextPage && <p style={{color: '#888', fontSize: '1.4rem'}}>Carregando...</p>}
+                {isFetchingNextPage && <p style={{color: '#888', fontSize: '1.4rem'}} className={styles.emptyMessage}>Carregando...</p>}
             </div>
         </div>
     );

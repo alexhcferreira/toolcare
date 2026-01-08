@@ -21,13 +21,13 @@ const Deposito = () => {
     const fetchDepositos = async ({ pageParam = 1 }) => {
         // O parâmetro 'search' é enviado para o Django, que usará os search_fields que configuramos acima
         const response = await api.get(`/api/depositos/`, {
-            params: { page: pageParam, search: buscaDebounced }
+            params: { page: pageParam, search: buscaDebounced, somente_ativos: 'true' }
         });
         return response.data;
     };
 
     const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useInfiniteQuery({
-        queryKey: ['depositos', buscaDebounced],
+        queryKey: ['depositos', buscaDebounced, 'somente_ativos'],
         queryFn: fetchDepositos,
         getNextPageParam: (lastPage) => {
             if (!lastPage.next) return undefined;
@@ -63,7 +63,7 @@ const Deposito = () => {
 
             <div className={`${styles.cardArea} dark-scroll`} onScroll={handleScroll}>
                 {isLoading ? (
-                    <p style={{color: 'white', fontSize: '1.6rem'}}>Carregando...</p>
+                    <p style={{color: 'white', fontSize: '1.6rem'}} className={styles.emptyMessage}>Carregando...</p>
                 ) : (
                     data?.pages.map((page, i) => (
                         <React.Fragment key={i}>
@@ -75,10 +75,10 @@ const Deposito = () => {
                 )}
                 
                 {!isLoading && data?.pages[0].results.length === 0 && (
-                    <p style={{color: '#888', fontSize: '1.6rem'}}>Nenhum depósito encontrado.</p>
+                    <p style={{color: '#888', fontSize: '1.6rem'}} className={styles.emptyMessage}>Nenhum depósito encontrado.</p>
                 )}
                 
-                {isFetchingNextPage && <p style={{color: '#888', fontSize: '1.4rem'}}>Carregando...</p>}
+                {isFetchingNextPage && <p style={{color: '#888', fontSize: '1.4rem'}} className={styles.emptyMessage}>Carregando...</p>}
             </div>
         </div>
     );

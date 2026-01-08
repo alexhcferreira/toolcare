@@ -7,14 +7,10 @@ import FalhaCadastroComponent from '../../../components/Avisos/FalhaCadastro/Fal
 
 import Select from 'react-select';
 import { customSelectStyles } from '../../../components/CustomSelect/selectStyles';
-
-// 1. IMPORTAR O HOOK DO REACT QUERY
 import { useQueryClient } from '@tanstack/react-query';
 
 const EmprestimoCadastro = () => {
-    // 2. INSTANCIAR O CLIENTE
     const queryClient = useQueryClient();
-
     const hoje = new Date().toISOString().split('T')[0];
 
     const [formData, setFormData] = useState({
@@ -24,37 +20,45 @@ const EmprestimoCadastro = () => {
         observacoes: ''
     });
 
-    const [ferramentasOptions, setFerramentasOptions] = useState([]);
+    // --- NOVO ESTADO: Depósito Selecionado ---
+    const [depositoSelecionado, setDepositoSelecionado] = useState(null);
+    const [depositosOptions, setDepositosOptions] = useState([]);
+
+    // Dados Brutos e Formatados
+    const [todasFerramentas, setTodasFerramentas] = useState([]); // Lista crua
+    const [ferramentasOptions, setFerramentasOptions] = useState([]); // Lista filtrada
     const [todosFuncionarios, setTodosFuncionarios] = useState([]); 
     const [funcionariosOptions, setFuncionariosOptions] = useState([]); 
     
     const [isFuncionarioDisabled, setIsFuncionarioDisabled] = useState(true);
     const [inputType, setInputType] = useState('text');
-
     const [showSuccess, setShowSuccess] = useState(false);
     const [showError, setShowError] = useState(false);
     const [msgErro, setMsgErro] = useState('');
 
+    // 1. CARREGAMENTO (Incluindo Depósitos)
     useEffect(() => {
         const loadDados = async () => {
             try {
-                const [ferramentasRes, funcionariosRes] = await Promise.all([
+                const [ferramentasRes, funcionariosRes, depositosRes] = await Promise.all([
                     api.get('/api/ferramentas/'),
-                    api.get('/api/funcionarios/')
+                    api.get('/api/funcionarios/'),
+                    api.get('/api/depositos/') // Busca depósitos
                 ]);
 
-                // Tratamento para paginação (results ou data)
+                // Tratamento de Paginação
                 const getList = (res) => res.data.results || res.data;
 
-                const ferramentasFormatadas = getList(ferramentasRes)
-                    .filter(f => f.estado === 'DISPONIVEL')
-                    .map(f => ({
-                        value: f.id,
-                        label: `${f.nome} - ${f.numero_serie}`,
-                        filial_nome: f.filial_nome 
-                    }));
+                // Salva todas as ferramentas DISPONÍVEIS cruas para filtrar depois
+                const ferramentasDisp = getList(ferramentasRes).filter(f => f.estado === 'DISPONIVEL');
+                setTodasFerramentas(ferramentasDisp);
                 
-                setFerramentasOptions(ferramentasFormatadas);
+                // Formata Depósitos
+                setDepositosOptions(getList(depositosRes).map(d => ({
+                    value: d.id,
+                    label: `${d.nome} - ${d.filial_nome}`
+                })));
+
                 setTodosFuncionarios(getList(funcionariosRes)); 
                 
             } catch (error) {
@@ -63,6 +67,35 @@ const EmprestimoCadastro = () => {
         };
         loadDados();
     }, []);
+
+    // 2. LÓGICA DE FILTRO DE FERRAMENTAS (Reage ao depósito ou carrega tudo)
+    useEffect(() => {
+        let filtradas = todasFerramentas;
+
+        // Se tiver depósito selecionado, filtra. Se não, mostra todas.
+        if (depositoSelecionado) {
+            filtradas = todasFerramentas.filter(f => f.deposito === depositoSelecionado.value);
+        }
+
+        // Formata para o React-Select
+        const formatadas = filtradas.map(f => ({
+            value: f.id,
+            label: `${f.nome} - ${f.numero_serie}`,
+            filial_nome: f.filial_nome
+        }));
+
+        setFerramentasOptions(formatadas);
+        
+        // Se a ferramenta selecionada não pertencer ao novo depósito, limpa ela
+        if (formData.ferramenta && depositoSelecionado) {
+            const ferramentaAindaValida = filtradas.find(f => f.id === formData.ferramenta.value);
+            if (!ferramentaAindaValida) {
+                setFormData(prev => ({ ...prev, ferramenta: null, funcionario: null }));
+                setIsFuncionarioDisabled(true);
+            }
+        }
+
+    }, [depositoSelecionado, todasFerramentas]);
 
     const handleFerramentaChange = (selectedOption) => {
         setFormData({ ...formData, ferramenta: selectedOption, funcionario: null }); 
@@ -128,22 +161,24 @@ const EmprestimoCadastro = () => {
             const response = await api.post('/api/emprestimos/', payload);
             console.log("Empréstimo realizado:", response.data);
 
-            // 3. INVALIDAR O CACHE
             queryClient.invalidateQueries(['emprestimos']);
 
             setShowSuccess(true);
             setShowError(false);
             
+            // Reset Total
             setFormData({
                 ferramenta: null,
                 funcionario: null,
                 data_emprestimo: hoje,
                 observacoes: ''
             });
+            setDepositoSelecionado(null); // Reseta o filtro de depósito também
             setIsFuncionarioDisabled(true);
             setInputType('text');
 
-            setFerramentasOptions(prev => prev.filter(f => f.value !== response.data.ferramenta));
+            // Atualiza a lista crua removendo a ferramenta usada
+            setTodasFerramentas(prev => prev.filter(f => f.id !== response.data.ferramenta));
 
             setTimeout(() => setShowSuccess(false), 3000);
         } catch (error) {
@@ -162,13 +197,25 @@ const EmprestimoCadastro = () => {
             </Link>
 
             <div id={styles.tela} className={styles.tela}>
-                <form
-                    onSubmit={handleSubmit}
-                    autoComplete='off'
-                    id={styles.cadastro_emprestimo_form}
-                >
+                <form onSubmit={handleSubmit} autoComplete='off' id={styles.cadastro_emprestimo_form}>
                     <p id={styles.cadastro}>Novo Empréstimo</p>
                     
+                    {/* --- NOVO: SELECT DE DEPÓSITO (Filtro Opcional) --- */}
+                    <div className={styles.inputGroup}>
+                        <label className={styles.label}>
+                            Filtrar por Depósito <span style={{color:'#888', fontSize:'1.2rem'}}>(Opcional)</span>
+                        </label>
+                        <Select
+                            placeholder="Todos os depósitos"
+                            noOptionsMessage={() => "Nenhum depósito encontrado"}
+                            styles={customSelectStyles} 
+                            options={depositosOptions}
+                            value={depositoSelecionado}
+                            onChange={setDepositoSelecionado}
+                            isClearable 
+                        />
+                    </div>
+
                     <div className={styles.inputGroup}>
                         <label className={styles.label}>
                             Ferramenta <span className={styles.asterisk}>*</span>

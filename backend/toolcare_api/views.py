@@ -1,26 +1,55 @@
-from rest_framework import viewsets
+from rest_framework import viewsets, status, filters
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework.decorators import action
-from rest_framework import filters # <--- Adicione este import no topo
 from rest_framework.response import Response
 from django.db import transaction
-from rest_framework import status
-from .serializers import CustomTokenObtainPairSerializer
+import re
+
 from .models import Usuario, Filial, Deposito, Setor, Cargo, Funcionario, Ferramenta, Emprestimo, Manutencao
-from .serializers import UsuarioSerializer, FilialSerializer, DepositoSerializer, SetorSerializer, CargoSerializer, FuncionarioSerializer, FerramentaSerializer, EmprestimoSerializer, ManutencaoSerializer
+from .serializers import (
+    CustomTokenObtainPairSerializer, UsuarioSerializer, FilialSerializer, 
+    DepositoSerializer, SetorSerializer, CargoSerializer, FuncionarioSerializer, 
+    FerramentaSerializer, EmprestimoSerializer, ManutencaoSerializer
+)
 from .permissions import IsAdminOrMaximo, UsuarioPermissions, ReadOnly
 
 
-def remover_acentos(texto):
-    if not texto: return ''
-    return ''.join(c for c in unicodedata.normalize('NFD', texto) if unicodedata.category(c) != 'Mn')
+class CustomTokenObtainPairView(TokenObtainPairView):
+    serializer_class = CustomTokenObtainPairSerializer
 
 class UsuarioViewSet(viewsets.ModelViewSet):
     queryset = Usuario.objects.all().order_by('nome')
     serializer_class = UsuarioSerializer
     permission_classes = [IsAuthenticated, UsuarioPermissions]
     search_fields = ['nome', 'cpf', 'tipo', 'filiais__nome', 'filiais__cidade']
+
+    def get_queryset(self):
+        queryset = Usuario.objects.all().order_by('nome')
+
+        # Filtros Específicos
+        search_field = self.request.query_params.get('search_field')
+        search_value = self.request.query_params.get('search_value')
+
+        if search_field and search_value:
+            if search_field == 'tipo':
+                queryset = queryset.filter(tipo=search_value)
+            else:
+                campos_map = {
+                    'nome': 'nome__icontains',
+                    'cpf': 'cpf__icontains',
+                    'filial': 'filiais__nome__icontains'
+                }
+                if search_field in campos_map:
+                    queryset = queryset.filter(**{campos_map[search_field]: search_value})
+
+        # Filtros de Status
+        if self.request.query_params.get('somente_ativos') == 'true':
+            queryset = queryset.filter(ativo=True)
+        if self.request.query_params.get('somente_inativos') == 'true':
+            queryset = queryset.filter(ativo=False)
+
+        return queryset.distinct()
     
 
 class FilialViewSet(viewsets.ModelViewSet):
@@ -31,48 +60,44 @@ class FilialViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
+        
         if user.tipo == 'COORDENADOR':
-            return user.filiais.all().order_by('nome')
-        return Filial.objects.all().order_by('nome')
+            queryset = user.filiais.all().order_by('nome')
+        else:
+            queryset = Filial.objects.all().order_by('nome')
+
+        if self.request.query_params.get('somente_ativos') == 'true':
+            queryset = queryset.filter(ativo=True)
+        if self.request.query_params.get('somente_inativos') == 'true':
+            queryset = queryset.filter(ativo=False)
+
+        return queryset
 
     @action(detail=True, methods=['patch'])
     def desativar(self, request, pk=None):
         filial = self.get_object()
         
-        # 1. VERIFICAÇÃO DE PERMISSÃO
         if request.user.tipo != 'MAXIMO':
-            return Response(
-                {"error": "Apenas usuários do tipo MÁXIMO podem desativar filiais."}, 
-                status=status.HTTP_403_FORBIDDEN
-            )
+            return Response({"error": "Apenas usuários do tipo MÁXIMO podem desativar filiais."}, status=status.HTTP_403_FORBIDDEN)
 
-        # 2. VERIFICAÇÃO DE SEGURANÇA (Ferramentas em uso)
         ferramentas_em_uso = Ferramenta.objects.filter(
             deposito__filial__id=filial.id,
             estado__in=['EMPRESTADA', 'EM_MANUTENCAO']
         )
 
-        # Se houver bloqueio, retorna 400 IMEDIATAMENTE (com a lista)
         if ferramentas_em_uso.exists():
             lista_ferramentas = [
                 f"{f.nome} ({f.numero_serie}) - {f.get_estado_display()}" 
                 for f in ferramentas_em_uso
             ]
             return Response(
-                {
-                    "error": "Bloqueio: Existem ferramentas ativas.",
-                    "lista_ferramentas": lista_ferramentas
-                }, 
+                {"error": "Bloqueio: Existem ferramentas ativas.", "lista_ferramentas": lista_ferramentas}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # --- NOVO: MODO PREVIEW (SIMULAÇÃO) ---
-        # Se o frontend mandou ?preview=true, paramos aqui.
-        # Se chegou até aqui, significa que NÃO tem ferramentas bloqueando.
         if request.query_params.get('preview') == 'true':
-            return Response({"status": "Liberado para desativação"}, status=status.HTTP_200_OK)
+            return Response({"status": "Liberado"}, status=status.HTTP_200_OK)
 
-        # 3. EXECUÇÃO EM CASCATA (Só acontece se não for preview)
         with transaction.atomic():
             filial.ativo = False
             filial.save()
@@ -82,6 +107,7 @@ class FilialViewSet(viewsets.ModelViewSet):
 
         return Response({"status": "Filial e itens associados desativados com sucesso."})
 
+
 class DepositoViewSet(viewsets.ModelViewSet):
     serializer_class = DepositoSerializer
     permission_classes = [IsAuthenticated, IsAdminOrMaximo|ReadOnly]
@@ -90,22 +116,26 @@ class DepositoViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
+        
         if user.tipo == 'COORDENADOR':
-            return Deposito.objects.filter(filial__in=user.filiais.all()).order_by('nome')
-        return Deposito.objects.all().order_by('nome')
+            queryset = Deposito.objects.filter(filial__in=user.filiais.all()).order_by('nome')
+        else:
+            queryset = Deposito.objects.all().order_by('nome')
+
+        if self.request.query_params.get('somente_ativos') == 'true':
+            queryset = queryset.filter(ativo=True)
+        if self.request.query_params.get('somente_inativos') == 'true':
+            queryset = queryset.filter(ativo=False)
+            
+        return queryset
 
     @action(detail=True, methods=['patch'])
     def desativar(self, request, pk=None):
         deposito = self.get_object()
         
-        # 1. VERIFICAÇÃO DE PERMISSÃO (Seguindo lógica de Filial: Só Máximo)
         if request.user.tipo != 'MAXIMO':
-            return Response(
-                {"error": "Apenas usuários do tipo MÁXIMO podem desativar depósitos."}, 
-                status=status.HTTP_403_FORBIDDEN
-            )
+            return Response({"error": "Apenas usuários do tipo MÁXIMO podem desativar depósitos."}, status=status.HTTP_403_FORBIDDEN)
 
-        # 2. VERIFICAÇÃO DE SEGURANÇA (Ferramentas em uso NESTE depósito)
         ferramentas_em_uso = Ferramenta.objects.filter(
             deposito=deposito,
             estado__in=['EMPRESTADA', 'EM_MANUTENCAO']
@@ -117,27 +147,20 @@ class DepositoViewSet(viewsets.ModelViewSet):
                 for f in ferramentas_em_uso
             ]
             return Response(
-                {
-                    "error": "Bloqueio: Existem ferramentas ativas neste depósito.",
-                    "lista_ferramentas": lista_ferramentas
-                }, 
+                {"error": "Bloqueio: Existem ferramentas ativas neste depósito.", "lista_ferramentas": lista_ferramentas}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # --- MODO PREVIEW ---
         if request.query_params.get('preview') == 'true':
-            return Response({"status": "Liberado para desativação"}, status=status.HTTP_200_OK)
+            return Response({"status": "Liberado"}, status=status.HTTP_200_OK)
 
-        # 3. EXECUÇÃO EM CASCATA
         with transaction.atomic():
-            # A. Desativa o Depósito
             deposito.ativo = False
             deposito.save()
-
-            # B. Inativa Ferramentas deste depósito
             Ferramenta.objects.filter(deposito=deposito).update(estado='INATIVA')
 
         return Response({"status": "Depósito e ferramentas associadas desativados com sucesso."})
+
 
 class SetorViewSet(viewsets.ModelViewSet):
     queryset = Setor.objects.all().order_by('nome_setor')
@@ -145,11 +168,32 @@ class SetorViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsAdminOrMaximo|ReadOnly]
     search_fields = ['nome_setor', 'descricao_setor']
 
+    def get_queryset(self):
+        queryset = Setor.objects.all().order_by('nome_setor')
+        
+        if self.request.query_params.get('somente_ativos') == 'true':
+            queryset = queryset.filter(ativo=True)
+        if self.request.query_params.get('somente_inativos') == 'true':
+            queryset = queryset.filter(ativo=False)
+            
+        return queryset
+
 class CargoViewSet(viewsets.ModelViewSet):
     queryset = Cargo.objects.all().order_by('nome_cargo')
     serializer_class = CargoSerializer
     permission_classes = [IsAuthenticated, IsAdminOrMaximo|ReadOnly]
     search_fields = ['nome_cargo', 'descricao_cargo']
+
+    def get_queryset(self):
+        queryset = Cargo.objects.all().order_by('nome_cargo')
+        
+        if self.request.query_params.get('somente_ativos') == 'true':
+            queryset = queryset.filter(ativo=True)
+        if self.request.query_params.get('somente_inativos') == 'true':
+            queryset = queryset.filter(ativo=False)
+            
+        return queryset
+
 
 class FuncionarioViewSet(viewsets.ModelViewSet):
     serializer_class = FuncionarioSerializer
@@ -165,18 +209,14 @@ class FuncionarioViewSet(viewsets.ModelViewSet):
         if user.tipo == 'COORDENADOR':
             queryset = queryset.filter(filiais__in=user.filiais.all()).distinct()
 
-        # 1. Filtro de Filial
         filial_id = self.request.query_params.get('filial')
         if filial_id:
             queryset = queryset.filter(filiais__id=filial_id)
 
-        # 2. Filtros Específicos
         search_field = self.request.query_params.get('search_field')
         search_value = self.request.query_params.get('search_value')
 
         if search_field and search_value:
-            
-            # Mapeamento de Campos
             campos_map = {
                 'nome': 'nome__icontains',
                 'matricula': 'matricula__icontains',
@@ -186,31 +226,25 @@ class FuncionarioViewSet(viewsets.ModelViewSet):
                 'filial_nome': 'filiais__nome__icontains'
             }
 
-            # Lógica 1: Busca por Nulos ("Sem", "Vazio")
             if search_value.lower() in ['sem', 'nenhum', 'null', 'vazio']:
                 if search_field == 'cargo':
                     queryset = queryset.filter(cargo__isnull=True)
                 elif search_field == 'setor':
                     queryset = queryset.filter(setor__isnull=True)
-                
-                # Se for outro campo que nao aceita nulo (ex: nome), ignora ou busca texto "sem"
                 elif search_field in campos_map:
                      lookup = campos_map[search_field]
                      queryset = queryset.filter(**{lookup: search_value})
 
-            # Lógica 2: Busca por Texto Normal
             elif search_field in campos_map:
                 lookup = campos_map[search_field]
-                queryset = queryset.filter(**{lookup: search_value}).distinct()
+                queryset = queryset.filter(**{lookup: search_value})
 
-        # 3. Filtros de Ativos/Inativos
         if self.request.query_params.get('somente_ativos') == 'true':
             queryset = queryset.filter(ativo=True)
-            
         if self.request.query_params.get('somente_inativos') == 'true':
             queryset = queryset.filter(ativo=False)
 
-        return queryset
+        return queryset.distinct()
     
     def get_serializer_context(self):
         context = super().get_serializer_context()
@@ -230,12 +264,12 @@ class FuncionarioViewSet(viewsets.ModelViewSet):
             methods.append('delete')
         return methods
 
+
 class FerramentaViewSet(viewsets.ModelViewSet):
     serializer_class = FerramentaSerializer
     permission_classes = [IsAuthenticated]
     queryset = Ferramenta.objects.all().order_by('nome')
     
-    # Mantemos o search_fields para a busca "Global"
     search_fields = [
         'nome', 'numero_serie', 'descricao', 
         'deposito__nome', 'deposito__filial__nome', 'deposito__filial__cidade',
@@ -245,18 +279,10 @@ class FerramentaViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['patch'])
     def desativar(self, request, pk=None):
         ferramenta = self.get_object()
-        
-        # Validação de segurança no backend também
         if ferramenta.estado != Ferramenta.EstadoChoices.DISPONIVEL:
-             return Response(
-                 {"error": "Apenas ferramentas disponíveis podem ser desativadas."}, 
-                 status=status.HTTP_400_BAD_REQUEST
-             )
-             
-        # Executa a desativação
+             return Response({"error": "Apenas ferramentas disponíveis podem ser desativadas."}, status=status.HTTP_400_BAD_REQUEST)
         ferramenta.estado = Ferramenta.EstadoChoices.INATIVA
         ferramenta.save()
-        
         return Response({"status": "Ferramenta inativada com sucesso"})
 
     def get_queryset(self):
@@ -266,54 +292,39 @@ class FerramentaViewSet(viewsets.ModelViewSet):
         if user.tipo == 'COORDENADOR':
             queryset = queryset.filter(deposito__filial__in=user.filiais.all())
 
-        # 1. Filtro de Filial
         filial_id = self.request.query_params.get('filial')
         if filial_id:
             queryset = queryset.filter(deposito__filial__id=filial_id)
 
-        # 2. Filtros Específicos (Busca)
         search_field = self.request.query_params.get('search_field')
         search_value = self.request.query_params.get('search_value')
 
         if search_field and search_value:
-            
-            # --- LÓGICA DE DATA AVANÇADA (xx/xx/xxxx) ---
             if search_field == 'data_aquisicao' and '/' in search_value:
                 try:
-                    # Espera formato: dia/mes/ano (pode ter xx)
                     partes = search_value.split('/')
                     if len(partes) == 3:
                         dia, mes, ano = partes
-                        
-                        if dia.lower() != 'xx':
-                            queryset = queryset.filter(data_aquisicao__day=int(dia))
-                        if mes.lower() != 'xx':
-                            queryset = queryset.filter(data_aquisicao__month=int(mes))
-                        if ano.lower() != 'xxxx':
-                            queryset = queryset.filter(data_aquisicao__year=int(ano))
-                except ValueError:
-                    pass # Se digitar errado, ignora
+                        if dia.lower() != 'xx': queryset = queryset.filter(data_aquisicao__day=int(dia))
+                        if mes.lower() != 'xx': queryset = queryset.filter(data_aquisicao__month=int(mes))
+                        if ano.lower() != 'xxxx': queryset = queryset.filter(data_aquisicao__year=int(ano))
+                except ValueError: pass
 
-            # --- LÓGICA DE ESTADO (Múltiplo) ---
             elif search_field == 'estado':
-                # O frontend manda: "DISPONIVEL,EM_MANUTENCAO"
                 estados = search_value.split(',')
                 queryset = queryset.filter(estado__in=estados)
 
-            # --- LÓGICA DE TEXTO (Nome, Serial, etc) ---
             else:
                 campos_map = {
                     'nome': 'nome__icontains',
                     'numero_serie': 'numero_serie__icontains',
                     'descricao': 'descricao__icontains',
                     'deposito': 'deposito__nome__icontains',
+                    'filial_nome': 'deposito__filial__nome__icontains',
+                    'cidade': 'deposito__filial__cidade__icontains'
                 }
-                
                 if search_field in campos_map:
                     lookup = campos_map[search_field]
-                    # Tenta filtrar direto
-                    # (Nota: SQLite não suporta unaccent nativo facil, entao usamos icontains simples aqui)
-                    # Para ignorar acentos de verdade, precisaria do PostgreSQL.
                     queryset = queryset.filter(**{lookup: search_value})
 
         if self.request.query_params.get('somente_disponiveis_emprestadas_manutencao') == 'true':
@@ -328,39 +339,59 @@ class EmprestimoViewSet(viewsets.ModelViewSet):
     serializer_class = EmprestimoSerializer
     permission_classes = [IsAuthenticated]
     queryset = Emprestimo.objects.all()
-    # Adicione search_fields se quiser pesquisar na barra de listagem de empréstimos futuramente
     search_fields = [
         'nome', 
-        'ferramenta__nome', 
-        'ferramenta__numero_serie', 
-        'funcionario__nome', 
-        'funcionario__matricula',
-        'data_emprestimo', # Permite buscar "2025-12-22"
-        'data_devolucao',
-        'observacoes'
+        'ferramenta__nome', 'ferramenta__numero_serie', 
+        'funcionario__nome', 'funcionario__matricula',
+        'data_emprestimo', 'data_devolucao', 'observacoes'
     ]
 
     def get_queryset(self):
         user = self.request.user
-        
-        # Começa com todos
         queryset = Emprestimo.objects.all().order_by('-data_emprestimo')
 
-        # 1. Regra de Segurança do Coordenador (MANTIDA)
         if user.tipo == 'COORDENADOR':
             queryset = queryset.filter(ferramenta__deposito__filial__in=user.filiais.all())
 
-        # 2. FILTRO ESPECÍFICO DE FUNCIONÁRIO (Novo)
-        # Permite: /api/emprestimos/?funcionario=5
         func_id = self.request.query_params.get('funcionario')
         if func_id:
             queryset = queryset.filter(funcionario__id=func_id)
 
-        # 3. FILTRO DE STATUS ATIVO (Novo)
-        # Permite: /api/emprestimos/?ativo=true
+        search_field = self.request.query_params.get('search_field')
+        search_value = self.request.query_params.get('search_value')
+
+        if search_field and search_value:
+            if search_field in ['data_emprestimo', 'data_devolucao'] and '/' in search_value:
+                try:
+                    partes = search_value.split('/')
+                    if len(partes) == 3:
+                        dia, mes, ano = partes
+                        filtro = {}
+                        if dia.lower() != 'xx': filtro[f'{search_field}__day'] = int(dia)
+                        if mes.lower() != 'xx': filtro[f'{search_field}__month'] = int(mes)
+                        if ano.lower() != 'xxxx': filtro[f'{search_field}__year'] = int(ano)
+                        queryset = queryset.filter(**filtro)
+                except ValueError: pass
+
+            elif search_value.lower() in ['sem', 'nenhum', 'null', 'vazio', 'em aberto', 'aberto']:
+                if search_field == 'data_devolucao':
+                    queryset = queryset.filter(data_devolucao__isnull=True)
+            
+            else:
+                campos_map = {
+                    'nome': 'nome__icontains',
+                    'ferramenta': 'ferramenta__nome__icontains',
+                    'serial': 'ferramenta__numero_serie__icontains',
+                    'funcionario': 'funcionario__nome__icontains',
+                    'matricula': 'funcionario__matricula__icontains',
+                    'observacoes': 'observacoes__icontains'
+                }
+                if search_field in campos_map:
+                    lookup = campos_map[search_field]
+                    queryset = queryset.filter(**{lookup: search_value})
+
         ativo_param = self.request.query_params.get('ativo')
         if ativo_param is not None:
-            # Converte string 'true'/'True' para booleano
             is_active = ativo_param.lower() == 'true'
             queryset = queryset.filter(ativo=is_active)
             
@@ -380,21 +411,53 @@ class ManutencaoViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     queryset = Manutencao.objects.all()
     search_fields = [
-        'nome', 
-        'ferramenta__nome', 
-        'ferramenta__numero_serie', 
-        'tipo', 
-        'data_inicio', 
-        'data_fim',
-        'observacoes'
+        'nome', 'ferramenta__nome', 'ferramenta__numero_serie', 
+        'tipo', 'data_inicio', 'data_fim', 'observacoes'
     ]
 
     def get_queryset(self):
         user = self.request.user
+        queryset = Manutencao.objects.all().order_by('-data_inicio')
+
         if user.tipo == 'COORDENADOR':
-            manutencoes_ativas = Manutencao.objects.filter(ferramenta__deposito__filial__in=user.filiais.all())
-            return manutencoes_ativas.order_by('-data_inicio')
-        return Manutencao.objects.all().order_by('-data_inicio')
+            queryset = queryset.filter(ferramenta__deposito__filial__in=user.filiais.all())
+
+        search_field = self.request.query_params.get('search_field')
+        search_value = self.request.query_params.get('search_value')
+
+        if search_field and search_value:
+            if search_field in ['data_inicio', 'data_fim'] and '/' in search_value:
+                try:
+                    partes = search_value.split('/')
+                    if len(partes) == 3:
+                        dia, mes, ano = partes
+                        filtro = {}
+                        if dia.lower() != 'xx': filtro[f'{search_field}__day'] = int(dia)
+                        if mes.lower() != 'xx': filtro[f'{search_field}__month'] = int(mes)
+                        if ano.lower() != 'xxxx': filtro[f'{search_field}__year'] = int(ano)
+                        queryset = queryset.filter(**filtro)
+                except ValueError: pass
+
+            elif search_field == 'tipo':
+                queryset = queryset.filter(tipo__iexact=search_value)
+
+            else:
+                campos_map = {
+                    'nome': 'nome__icontains',
+                    'ferramenta': 'ferramenta__nome__icontains',
+                    'serial': 'ferramenta__numero_serie__icontains',
+                    'observacoes': 'observacoes__icontains'
+                }
+                if search_field in campos_map:
+                    lookup = campos_map[search_field]
+                    queryset = queryset.filter(**{lookup: search_value})
+
+        ativo_param = self.request.query_params.get('ativo')
+        if ativo_param is not None:
+            is_active = ativo_param.lower() == 'true'
+            queryset = queryset.filter(ativo=is_active)
+            
+        return queryset
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
@@ -404,6 +467,3 @@ class ManutencaoViewSet(viewsets.ModelViewSet):
             ferramenta_queryset = ferramenta_queryset.filter(deposito__filial__in=user.filiais.all())
         context['ferramenta_queryset'] = ferramenta_queryset
         return context
-    
-class CustomTokenObtainPairView(TokenObtainPairView):
-    serializer_class = CustomTokenObtainPairSerializer

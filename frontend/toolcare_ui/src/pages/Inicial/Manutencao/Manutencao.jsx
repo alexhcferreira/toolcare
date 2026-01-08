@@ -1,44 +1,106 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import styles from './manutencao.module.css'; // Copie de emprestimo.module.css
+import styles from '../Ferramenta/ferramenta.module.css'; // Copie de emprestimo.module.css
 import api from '../../../services/api';
 import CardManutencao from '../../../components/Cards/Manutencao/ManutencaoCard';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 
+import Select from 'react-select';
+import { filterSelectStyles } from '../../../components/CustomSelect/filterSelectStyles';
+
 const Manutencao = () => {
     const [buscaInput, setBuscaInput] = useState('');
     const [buscaDebounced, setBuscaDebounced] = useState('');
+    
+    // Filtros
+    const [filialSelecionada, setFilialSelecionada] = useState(null); 
+    const [campoBusca, setCampoBusca] = useState({ value: 'global', label: 'Todos os campos' });
+
+    const [listaFiliais, setListaFiliais] = useState([]);
     const queryClient = useQueryClient();
 
-    React.useEffect(() => {
-        const timer = setTimeout(() => {
-            // Conversão de data BR para ISO na busca
-            let termo = buscaInput;
-            const regexDataBR = /^(\d{2})\/(\d{2})\/(\d{4})$/;
-            if (regexDataBR.test(termo)) {
-                termo = termo.replace(regexDataBR, '$3-$2-$1');
+    // Campos disponíveis para filtro
+    const opcoesCampos = [
+        { value: 'global', label: 'Todos os campos' },
+        { value: 'nome', label: 'Nome' },
+        { value: 'ferramenta', label: 'Nome da Ferramenta' },
+        { value: 'serial', label: 'Nº de Série da Ferramenta' },
+        { value: 'tipo', label: 'Tipo da Manutenção' },
+        { value: 'data_inicio', label: 'Data de Início' },
+        { value: 'data_fim', label: 'Data de Fim' },
+        { value: 'observacoes', label: 'Observações' }
+    ];
+
+    // Opções para o Select de Tipo
+    const opcoesTipo = [
+        { value: 'PREVENTIVA', label: 'Preventiva' },
+        { value: 'CORRETIVA', label: 'Corretiva' }
+    ];
+
+    useEffect(() => {
+        const loadFiliais = async () => {
+            try {
+                const response = await api.get('/api/filiais/');
+                const dados = response.data.results || response.data;
+                const formatados = dados.map(f => ({ value: f.id, label: f.nome }));
+                formatados.unshift({ value: '', label: 'Todas as Filiais' });
+                setListaFiliais(formatados);
+            } catch (error) {
+                console.error("Erro ao carregar filiais", error);
             }
-            setBuscaDebounced(termo);
+        };
+        loadFiliais();
+    }, []);
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setBuscaDebounced(buscaInput);
         }, 500);
         return () => clearTimeout(timer);
     }, [buscaInput]);
 
     const fetchManutencoes = async ({ pageParam = 1 }) => {
-        const response = await api.get(`/api/manutencoes/`, {
-            params: { page: pageParam, search: buscaDebounced }
-        });
-        return response.data;
+        const params = { 
+            page: pageParam,
+            ativo: 'true' // <--- FILTRA SOMENTE ATIVAS
+        };
+
+        if (filialSelecionada && filialSelecionada.value) {
+            params.filial = filialSelecionada.value;
+        }
+
+        if (buscaDebounced) {
+            if (campoBusca.value === 'global') {
+                params.search = buscaDebounced;
+            } else if (campoBusca.value === 'tipo') {
+                // Se for tipo, manda o valor direto
+                params.search_field = 'tipo';
+                params.search_value = buscaDebounced;
+            } else {
+                params.search_field = campoBusca.value;
+                params.search_value = buscaDebounced;
+            }
+        }
+
+        const response = await api.get(`/api/manutencoes/`, { params });
+        return response.data; 
     };
 
-    const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useInfiniteQuery({
-        queryKey: ['manutencoes', buscaDebounced],
+    const {
+        data,
+        fetchNextPage,
+        hasNextPage,
+        isFetchingNextPage,
+        isLoading, 
+    } = useInfiniteQuery({
+        queryKey: ['manutencoes', buscaDebounced, filialSelecionada, campoBusca], 
         queryFn: fetchManutencoes,
         getNextPageParam: (lastPage) => {
             if (!lastPage.next) return undefined;
             const url = new URL(lastPage.next);
             return url.searchParams.get('page');
         },
-        keepPreviousData: true
+        keepPreviousData: true 
     });
 
     const handleScroll = (e) => {
@@ -48,20 +110,69 @@ const Manutencao = () => {
         }
     };
 
-    const handleUpdate = () => queryClient.invalidateQueries(['manutencoes']);
+    const handleUpdate = () => {
+        queryClient.invalidateQueries(['manutencoes']);
+    };
 
     return (
         <div className={styles.container}>
             <Link to="/manutencao_cadastro" className={styles.addButton}>+</Link>
 
             <div className={styles.searchBarContainer}>
-                <input
-                    className={styles.searchInput}
-                    type='search'
-                    placeholder="Pesquisar (Ferramenta, Serial, Tipo, Data)..."
-                    value={buscaInput}
-                    onChange={(e) => setBuscaInput(e.target.value)}
-                />
+                
+                {/* 1. FILIAL */}
+                <div style={{ width: '220px' }}>
+                    <Select
+                        options={listaFiliais}
+                        value={filialSelecionada}
+                        onChange={setFilialSelecionada}
+                        placeholder="Todas as Filiais"
+                        styles={filterSelectStyles}
+                        isSearchable={false} 
+                    />
+                </div>
+
+                <div className={styles.divider}></div>
+
+                {/* 2. CATEGORIA */}
+                <div style={{ width: '200px' }}>
+                    <Select
+                        options={opcoesCampos}
+                        value={campoBusca}
+                        onChange={(opt) => {
+                            setCampoBusca(opt);
+                            setBuscaInput(''); 
+                        }}
+                        styles={filterSelectStyles}
+                        isSearchable={false}
+                    />
+                </div>
+
+                <div className={styles.divider}></div>
+
+                {/* 3. INPUT (CONDICIONAL PARA TIPO) */}
+                <div style={{ flex: 1 }}>
+                    {campoBusca.value === 'tipo' ? (
+                        <Select
+                            options={opcoesTipo}
+                            onChange={(opt) => setBuscaInput(opt ? opt.value : '')}
+                            placeholder="Selecione o tipo..."
+                            styles={filterSelectStyles}
+                            isSearchable={false}
+                        />
+                    ) : (
+                        <input
+                            className={styles.searchInput}
+                            type='search'
+                            placeholder={
+                                campoBusca.value.includes('data') ? "Ex: xx/05/2024..." : 
+                                `Filtrar por ${campoBusca.label}...`
+                            }
+                            value={buscaInput}
+                            onChange={(e) => setBuscaInput(e.target.value)}
+                        />
+                    )}
+                </div>
             </div>
 
             <div className={`${styles.cardArea} dark-scroll`} onScroll={handleScroll}>
@@ -76,11 +187,9 @@ const Manutencao = () => {
                         </React.Fragment>
                     ))
                 )}
-                
                 {!isLoading && data?.pages[0].results.length === 0 && (
                     <p style={{color: '#888', fontSize: '1.6rem'}}>Nenhuma manutenção encontrada.</p>
                 )}
-                
                 {isFetchingNextPage && <p style={{color: '#888', fontSize: '1.4rem'}}>Carregando...</p>}
             </div>
         </div>

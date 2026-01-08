@@ -18,13 +18,13 @@ const Setor = () => {
 
     const fetchSetores = async ({ pageParam = 1 }) => {
         const response = await api.get(`/api/setores/`, {
-            params: { page: pageParam, search: buscaDebounced }
+            params: { page: pageParam, search: buscaDebounced, somente_ativos: 'true' }
         });
         return response.data;
     };
 
     const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useInfiniteQuery({
-        queryKey: ['setores', buscaDebounced],
+        queryKey: ['setores', buscaDebounced, 'somente_ativos'],
         queryFn: fetchSetores,
         getNextPageParam: (lastPage) => {
             if (!lastPage.next) return undefined;
@@ -58,7 +58,7 @@ const Setor = () => {
 
             <div className={`${styles.cardArea} dark-scroll`} onScroll={handleScroll}>
                 {isLoading ? (
-                    <p style={{color: 'white', fontSize: '1.6rem'}}>Carregando...</p>
+                    <p style={{color: 'white', fontSize: '1.6rem'}} className={styles.emptyMessage}>Carregando...</p>
                 ) : (
                     data?.pages.map((page, i) => (
                         <React.Fragment key={i}>
@@ -70,7 +70,7 @@ const Setor = () => {
                 )}
                 
                 {!isLoading && data?.pages[0].results.length === 0 && (
-                    <p style={{color: '#888', fontSize: '1.6rem'}}>Nenhum setor encontrado.</p>
+                    <p style={{color: '#888', fontSize: '1.6rem'}} className={styles.emptyMessage}>Nenhum setor encontrado.</p>
                 )}
                 
                 {isFetchingNextPage && <p style={{color: '#888', fontSize: '1.4rem'}}>Carregando...</p>}

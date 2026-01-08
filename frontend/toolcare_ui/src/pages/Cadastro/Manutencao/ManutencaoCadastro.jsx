@@ -5,54 +5,94 @@ import api from '../../../services/api';
 import CadastradoComponent from '../../../components/Avisos/Cadastrado/Cadastrado';
 import FalhaCadastroComponent from '../../../components/Avisos/FalhaCadastro/FalhaCadastro';
 
-// 1. IMPORTS DO REACT-SELECT
 import Select from 'react-select';
 import { customSelectStyles } from '../../../components/CustomSelect/selectStyles';
 
+// 1. IMPORT DO HOOK
+import { useQueryClient } from '@tanstack/react-query';
+
 const ManutencaoCadastro = () => {
+    // 2. INSTANCIAR CLIENTE
+    const queryClient = useQueryClient();
+
     const hoje = new Date().toISOString().split('T')[0];
 
     const [formData, setFormData] = useState({
-        ferramenta: null, // Agora é um objeto do react-select
+        ferramenta: null, 
         tipo: '', 
         data_inicio: hoje,
         observacoes: ''
     });
 
-    const [ferramentasOptions, setFerramentasOptions] = useState([]); // Opções formatadas
-    const [inputType, setInputType] = useState('text');
+    // --- FILTRO DE DEPÓSITO ---
+    const [depositoSelecionado, setDepositoSelecionado] = useState(null);
+    const [depositosOptions, setDepositosOptions] = useState([]);
 
+    const [todasFerramentas, setTodasFerramentas] = useState([]); // Cruas
+    const [ferramentasOptions, setFerramentasOptions] = useState([]); // Formatadas
+    
+    const [inputType, setInputType] = useState('text');
     const [showSuccess, setShowSuccess] = useState(false);
     const [showError, setShowError] = useState(false);
     const [msgErro, setMsgErro] = useState('');
 
     useEffect(() => {
-        const loadFerramentas = async () => {
+        const loadDados = async () => {
             try {
-                const response = await api.get('/api/ferramentas/');
+                const [ferramentasRes, depositosRes] = await Promise.all([
+                    api.get('/api/ferramentas/'),
+                    api.get('/api/depositos/')
+                ]);
                 
-                // 2. FILTRAR E FORMATAR PARA O REACT-SELECT
-                const formatados = response.data
-                    .filter(f => f.estado === 'DISPONIVEL')
-                    .map(f => ({
-                        value: f.id,
-                        label: `${f.nome} - ${f.numero_serie}`
-                    }));
+                const getList = (res) => res.data.results || res.data;
+
+                // Salva ferramentas DISPONÍVEIS cruas
+                const ferramentasDisp = getList(ferramentasRes).filter(f => f.estado === 'DISPONIVEL');
+                setTodasFerramentas(ferramentasDisp);
                 
-                setFerramentasOptions(formatados);
+                // Formata Depósitos
+                setDepositosOptions(getList(depositosRes).map(d => ({
+                    value: d.id,
+                    label: `${d.nome} - ${d.filial_nome}`
+                })));
+
             } catch (error) {
-                console.error("Erro ao carregar ferramentas:", error);
+                console.error("Erro ao carregar dados:", error);
             }
         };
-        loadFerramentas();
+        loadDados();
     }, []);
+
+    // FILTRO DE FERRAMENTAS POR DEPÓSITO
+    useEffect(() => {
+        let filtradas = todasFerramentas;
+
+        if (depositoSelecionado) {
+            filtradas = todasFerramentas.filter(f => f.deposito === depositoSelecionado.value);
+        }
+
+        const formatadas = filtradas.map(f => ({
+            value: f.id,
+            label: `${f.nome} - ${f.numero_serie}`,
+            filial_nome: f.filial_nome
+        }));
+
+        setFerramentasOptions(formatadas);
+
+        // Limpa seleção se não pertencer ao depósito
+        if (formData.ferramenta && depositoSelecionado) {
+            const aindaValida = filtradas.find(f => f.id === formData.ferramenta.value);
+            if (!aindaValida) {
+                setFormData(prev => ({ ...prev, ferramenta: null }));
+            }
+        }
+    }, [depositoSelecionado, todasFerramentas]);
 
     const handleChange = (event) => {
         const { name, value } = event.target;
         setFormData({ ...formData, [name]: value });
     };
 
-    // 3. HANDLER ESPECÍFICO PARA FERRAMENTA
     const handleFerramentaChange = (selectedOption) => {
         setFormData({ ...formData, ferramenta: selectedOption });
     };
@@ -66,7 +106,6 @@ const ManutencaoCadastro = () => {
     const handleSubmit = async (event) => {
         event.preventDefault();
 
-        // Validação manual
         if (!formData.ferramenta) {
             setMsgErro("Selecione uma ferramenta.");
             setShowError(true);
@@ -74,7 +113,6 @@ const ManutencaoCadastro = () => {
             return;
         }
 
-        // 4. PREPARAR DADOS (Extrair ID)
         const payload = {
             ...formData,
             ferramenta: formData.ferramenta.value
@@ -82,23 +120,26 @@ const ManutencaoCadastro = () => {
 
         try {
             const response = await api.post('/api/manutencoes/', payload);
-            
             console.log("Manutenção iniciada:", response.data);
+
+            // 3. INVALIDAR CACHE
+            queryClient.invalidateQueries(['manutencoes']);
 
             setShowSuccess(true);
             setShowError(false);
             
-            // Reset
+            // Reset Total
             setFormData({
                 ferramenta: null,
                 tipo: '',
                 data_inicio: hoje,
                 observacoes: ''
             });
+            setDepositoSelecionado(null);
             setInputType('text');
 
-            // Remove a ferramenta da lista de opções (pois agora está EM_MANUTENCAO)
-            setFerramentasOptions(prev => prev.filter(f => f.value !== response.data.ferramenta));
+            // Atualiza lista crua removendo a ferramenta
+            setTodasFerramentas(prev => prev.filter(f => f.id !== response.data.ferramenta));
 
             setTimeout(() => setShowSuccess(false), 3000);
         } catch (error) {
@@ -124,7 +165,23 @@ const ManutencaoCadastro = () => {
                 >
                     <p id={styles.cadastro}>Nova Manutenção</p>
                     
-                    {/* SELECT DE FERRAMENTA (COM PESQUISA) */}
+                    {/* --- SELECT DE DEPÓSITO (FILTRO OPCIONAL) --- */}
+                    <div className={styles.inputGroup}>
+                        <label className={styles.label}>
+                            Filtrar por Depósito <span style={{color:'#888', fontSize:'1.2rem'}}>(Opcional)</span>
+                        </label>
+                        <Select
+                            placeholder="Todos os depósitos"
+                            noOptionsMessage={() => "Nenhum depósito encontrado"}
+                            styles={customSelectStyles} 
+                            options={depositosOptions}
+                            value={depositoSelecionado}
+                            onChange={setDepositoSelecionado}
+                            isClearable 
+                        />
+                    </div>
+
+                    {/* SELECT DE FERRAMENTA */}
                     <div className={styles.inputGroup}>
                         <label className={styles.label}>
                             Ferramenta <span className={styles.asterisk}>*</span>
@@ -141,7 +198,7 @@ const ManutencaoCadastro = () => {
                         />
                     </div>
 
-                    {/* SELECT DE TIPO (NATIVO - Mantido como estava) */}
+                    {/* SELECT DE TIPO */}
                     <div className={styles.inputGroup}>
                         <label className={styles.label}>
                             Tipo <span className={styles.asterisk}>*</span>
@@ -159,7 +216,6 @@ const ManutencaoCadastro = () => {
                         </select>
                     </div>
                     
-                    {/* Data de Início */}
                     <div className={styles.inputGroup}>
                         <label className={styles.label}>
                             Data de Início <span className={styles.asterisk}>*</span>
@@ -177,7 +233,6 @@ const ManutencaoCadastro = () => {
                         />
                     </div>
 
-                    {/* Observações */}
                     <div className={styles.inputGroup}>
                         <label className={styles.label}>Observações</label>
                         <textarea

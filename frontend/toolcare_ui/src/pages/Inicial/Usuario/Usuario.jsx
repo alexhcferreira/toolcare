@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import styles from '../Funcionario/funcionario.module.css'; // Copie o CSS de funcionario.module.css
+import styles from '../Ferramenta/ferramenta.module.css'; // Copie o CSS de funcionario.module.css
 import api from '../../../services/api';
 import CardUsuario from '../../../components/Cards/Usuario/CardUsuario';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
@@ -11,13 +11,13 @@ const Usuario = () => {
 
     const fetchUsuarios = async ({ pageParam = 1 }) => {
         const response = await api.get(`/api/usuarios/`, {
-            params: { page: pageParam, search: busca }
+            params: { page: pageParam, search: busca, somente_ativos: 'true' }
         });
         return response.data;
     };
 
     const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useInfiniteQuery({
-        queryKey: ['usuarios', busca],
+        queryKey: ['usuarios', busca, 'somente_ativos'],
         queryFn: fetchUsuarios,
         getNextPageParam: (lastPage) => {
             if (!lastPage.next) return undefined;

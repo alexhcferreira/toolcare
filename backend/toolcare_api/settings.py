@@ -61,10 +61,16 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "toolcare_api.wsgi.application"
 
+# settings.py
+
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'toolcare_db',
+        'USER': 'postgres',      # O usuário padrão é postgres
+        'PASSWORD': '123', # <--- COLOQUE A SENHA QUE VOCÊ DEFINIU NA INSTALAÇÃO
+        'HOST': 'localhost',
+        'PORT': '5432',
     }
 }
 
