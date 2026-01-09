@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import styles from '../Ferramenta/ferramenta.module.css'; // Usando CSS próprio (cópia do ferramenta)
+import styles from '../Ferramenta/ferramenta_inativo.module.css'; // Copie de emprestimo.module.css
 import api from '../../../services/api';
-import CardFuncionario from '../../../components/Cards/Funcionario/CardFuncionario';
+import CardManutencao from '../../../components/Cards/Manutencao/ManutencaoCard';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 
 import Select from 'react-select';
 import { filterSelectStyles } from '../../../components/CustomSelect/filterSelectStyles';
 
-const Funcionario = () => {
+const ManutencaoInativo = () => {
     const [buscaInput, setBuscaInput] = useState('');
     const [buscaDebounced, setBuscaDebounced] = useState('');
     
@@ -19,14 +19,22 @@ const Funcionario = () => {
     const [listaFiliais, setListaFiliais] = useState([]);
     const queryClient = useQueryClient();
 
-    // Opções de Campos para Funcionário
+    // Campos disponíveis para filtro
     const opcoesCampos = [
         { value: 'global', label: 'Todos os campos' },
         { value: 'nome', label: 'Nome' },
-        { value: 'matricula', label: 'Matrícula' },
-        { value: 'cpf', label: 'CPF' },
-        { value: 'cargo', label: 'Cargo' },
-        { value: 'setor', label: 'Setor' }
+        { value: 'ferramenta', label: 'Nome da Ferramenta' },
+        { value: 'serial', label: 'Nº de Série da Ferramenta' },
+        { value: 'tipo', label: 'Tipo da Manutenção' },
+        { value: 'data_inicio', label: 'Data de Início' },
+        { value: 'data_fim', label: 'Data de Fim' },
+        { value: 'observacoes', label: 'Observações' }
+    ];
+
+    // Opções para o Select de Tipo
+    const opcoesTipo = [
+        { value: 'PREVENTIVA', label: 'Preventiva' },
+        { value: 'CORRETIVA', label: 'Corretiva' }
     ];
 
     useEffect(() => {
@@ -51,10 +59,10 @@ const Funcionario = () => {
         return () => clearTimeout(timer);
     }, [buscaInput]);
 
-    const fetchFuncionarios = async ({ pageParam = 1 }) => {
+    const fetchManutencoes = async ({ pageParam = 1 }) => {
         const params = { 
             page: pageParam,
-            somente_ativos: 'true' // <--- Filtro de Ativos
+            ativo: 'false' // <--- FILTRA SOMENTE INATIVAS
         };
 
         if (filialSelecionada && filialSelecionada.value) {
@@ -64,13 +72,17 @@ const Funcionario = () => {
         if (buscaDebounced) {
             if (campoBusca.value === 'global') {
                 params.search = buscaDebounced;
+            } else if (campoBusca.value === 'tipo') {
+                // Se for tipo, manda o valor direto
+                params.search_field = 'tipo';
+                params.search_value = buscaDebounced;
             } else {
                 params.search_field = campoBusca.value;
                 params.search_value = buscaDebounced;
             }
         }
 
-        const response = await api.get(`/api/funcionarios/`, { params });
+        const response = await api.get(`/api/manutencoes/`, { params });
         return response.data; 
     };
 
@@ -81,8 +93,8 @@ const Funcionario = () => {
         isFetchingNextPage,
         isLoading, 
     } = useInfiniteQuery({
-        queryKey: ['funcionarios', buscaDebounced, filialSelecionada, campoBusca], 
-        queryFn: fetchFuncionarios,
+        queryKey: ['manutencoes', buscaDebounced, filialSelecionada, campoBusca], 
+        queryFn: fetchManutencoes,
         getNextPageParam: (lastPage) => {
             if (!lastPage.next) return undefined;
             const url = new URL(lastPage.next);
@@ -99,12 +111,12 @@ const Funcionario = () => {
     };
 
     const handleUpdate = () => {
-        queryClient.invalidateQueries(['funcionarios']);
+        queryClient.invalidateQueries(['manutencoes']);
     };
 
     return (
         <div className={styles.container}>
-            <Link to="/funcionario_cadastro" className={styles.addButton}>+</Link>
+            <Link to="/manutencao_cadastro" className={styles.addButton}>+</Link>
 
             <div className={styles.searchBarContainer}>
                 
@@ -138,18 +150,28 @@ const Funcionario = () => {
 
                 <div className={styles.divider}></div>
 
-                {/* 3. INPUT TEXTO */}
+                {/* 3. INPUT (CONDICIONAL PARA TIPO) */}
                 <div style={{ flex: 1 }}>
-                    <input
-                        className={styles.searchInput}
-                        type='search'
-                        placeholder={
-                            campoBusca.value === 'global' ? "Pesquisar..." : 
-                            `Filtrar por ${campoBusca.label}...`
-                        }
-                        value={buscaInput}
-                        onChange={(e) => setBuscaInput(e.target.value)}
-                    />
+                    {campoBusca.value === 'tipo' ? (
+                        <Select
+                            options={opcoesTipo}
+                            onChange={(opt) => setBuscaInput(opt ? opt.value : '')}
+                            placeholder="Selecione o tipo..."
+                            styles={filterSelectStyles}
+                            isSearchable={false}
+                        />
+                    ) : (
+                        <input
+                            className={styles.searchInput}
+                            type='search'
+                            placeholder={
+                                campoBusca.value.includes('data') ? "Ex: xx/05/2024..." : 
+                                `Filtrar por ${campoBusca.label}...`
+                            }
+                            value={buscaInput}
+                            onChange={(e) => setBuscaInput(e.target.value)}
+                        />
+                    )}
                 </div>
             </div>
 
@@ -159,14 +181,14 @@ const Funcionario = () => {
                 ) : (
                     data?.pages.map((page, i) => (
                         <React.Fragment key={i}>
-                            {page.results.map(func => (
-                                <CardFuncionario key={func.id} funcionario={func} onUpdate={handleUpdate} />
+                            {page.results.map(man => (
+                                <CardManutencao key={man.id} manutencao={man} onUpdate={handleUpdate} />
                             ))}
                         </React.Fragment>
                     ))
                 )}
                 {!isLoading && data?.pages[0].results.length === 0 && (
-                    <p style={{color: '#888', fontSize: '1.6rem'}}>Nenhum funcionário encontrado.</p>
+                    <p style={{color: '#888', fontSize: '1.6rem'}}>Nenhuma manutenção encontrada.</p>
                 )}
                 {isFetchingNextPage && <p style={{color: '#888', fontSize: '1.4rem'}}>Carregando...</p>}
             </div>
@@ -174,4 +196,4 @@ const Funcionario = () => {
     );
 }
 
-export default Funcionario;
+export default ManutencaoInativo;

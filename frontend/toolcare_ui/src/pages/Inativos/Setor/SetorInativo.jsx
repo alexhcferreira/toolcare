@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import styles from './filial.module.css'; // Crie copiando de funcionario.module.css
+// Reutilizando CSS de grid da filial (pois o layout é igual)
+import styles from '../Filial/filial_inativo.module.css'; 
 import api from '../../../services/api';
-import CardFilial from '../../../components/Cards/Filial/CardFilial';
+import CardSetor from '../../../components/Cards/Setor/CardSetor';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 
-const Filial = () => {
+const SetorInativo = () => {
     const [buscaInput, setBuscaInput] = useState('');
     const [buscaDebounced, setBuscaDebounced] = useState('');
     const queryClient = useQueryClient();
@@ -15,20 +16,16 @@ const Filial = () => {
         return () => clearTimeout(timer);
     }, [buscaInput]);
 
-    const fetchFiliais = async ({ pageParam = 1 }) => {
-        const response = await api.get(`/api/filiais/`, {
-            params: { 
-                page: pageParam, 
-                search: buscaDebounced,
-                somente_ativos: 'true' // <--- FILTRO ADICIONADO
-            }
+    const fetchSetores = async ({ pageParam = 1 }) => {
+        const response = await api.get(`/api/setores/`, {
+            params: { page: pageParam, search: buscaDebounced, somente_inativos: 'true' }
         });
         return response.data;
     };
 
     const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useInfiniteQuery({
-        queryKey: ['filiais', buscaDebounced, 'somente_ativos'],
-        queryFn: fetchFiliais,
+        queryKey: ['setores', buscaDebounced, 'somente_inativos'],
+        queryFn: fetchSetores,
         getNextPageParam: (lastPage) => {
             if (!lastPage.next) return undefined;
             const url = new URL(lastPage.next);
@@ -44,17 +41,16 @@ const Filial = () => {
         }
     };
 
-    const handleUpdate = () => queryClient.invalidateQueries(['filiais']);
+    const handleUpdate = () => queryClient.invalidateQueries(['setores']);
 
     return (
         <div className={styles.container}>
-            <Link to="/filial_cadastro" className={styles.addButton}>+</Link>
-
+            <Link to="/setor_cadastro" className={styles.addButton}>+</Link>
             <div className={styles.searchBarContainer}>
                 <input
                     className={styles.searchInput}
                     type='search'
-                    placeholder="Pesquisar filial..."
+                    placeholder="Pesquisar setor..."
                     value={buscaInput}
                     onChange={(e) => setBuscaInput(e.target.value)}
                 />
@@ -62,25 +58,25 @@ const Filial = () => {
 
             <div className={`${styles.cardArea} dark-scroll`} onScroll={handleScroll}>
                 {isLoading ? (
-                    <p style={{color: '#888', fontSize: '1.6rem'}} className={styles.emptyMessage}>Carregando...</p>
+                    <p style={{color: '#000', fontSize: '1.6rem'}} className={styles.emptyMessage}>Carregando...</p>
                 ) : (
                     data?.pages.map((page, i) => (
                         <React.Fragment key={i}>
-                            {page.results.map(filial => (
-                                <CardFilial key={filial.id} filial={filial} onUpdate={handleUpdate} />
+                            {page.results.map(setor => (
+                                <CardSetor key={setor.id} setor={setor} onUpdate={handleUpdate} />
                             ))}
                         </React.Fragment>
                     ))
                 )}
                 
                 {!isLoading && data?.pages[0].results.length === 0 && (
-                    <p style={{color: '#888', fontSize: '1.6rem'}} className={styles.emptyMessage}>Nenhuma filial encontrada.</p>
+                    <p style={{color: '#000', fontSize: '1.6rem'}} className={styles.emptyMessage}>Nenhum setor encontrado.</p>
                 )}
                 
-                {isFetchingNextPage && <p style={{color: '#888', fontSize: '1.4rem'}} className={styles.emptyMessage}>Carregando...</p>}
+                {isFetchingNextPage && <p style={{color: '#000', fontSize: '1.4rem'}}>Carregando...</p>}
             </div>
         </div>
     );
 }
 
-export default Filial;
+export default SetorInativo;

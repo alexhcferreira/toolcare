@@ -3,9 +3,11 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 
 import { AuthContext } from './context/AuthContext';
 import Layout from '../src/Layout/Layout';
+import LayoutInativos from '../src/LayoutInativos/LayoutInativos'; // <--- NOVO LAYOUT
 import Login from './pages/Login/Login';
+import AcessoNegado from './pages/AcessoNegado/AcessoNegado';
 
-// --- IMPORTAÇÃO DAS PÁGINAS ---
+// --- PÁGINAS ATIVAS ---
 import VisaoGeral from './pages/Inicial/VisaoGeral/VisaoGeral';
 import Cargo from './pages/Inicial/Cargo/Cargo'; 
 import CargoCadastro from './pages/Cadastro/Cargo/CargoCadastro';
@@ -27,44 +29,44 @@ import Usuario from './pages/Inicial/Usuario/Usuario';
 import UsuarioCadastro from './pages/Cadastro/Usuario/UsuarioCadastro';
 import ListaFerramentas from './pages/Testes/ListaFerramentas';
 
-// Importe a página de Acesso Negado
-import AcessoNegado from './pages/AcessoNegado/AcessoNegado';
+// --- PÁGINAS INATIVAS ---
+import EmprestimoInativo from './pages/Inativos/Emprestimo/EmprestimoInativo';
+import FerramentaInativo from './pages/Inativos/Ferramenta/FerramentaInativo';
+import FuncionarioInativo from './pages/Inativos/Funcionario/FuncionarioInativo';
+import ManutencaoInativo from './pages/Inativos/Manutencao/ManutencaoInativo';
+import CargoInativo from './pages/Inativos/Cargo/CargoInativo';
+import SetorInativo from './pages/Inativos/Setor/SetorInativo';
+import DepositoInativo from './pages/Inativos/Deposito/DepositoInativo';
+import FilialInativo from './pages/Inativos/Filial/FilialInativo';
+import UsuarioInativo from './pages/Inativos/Usuario/UsuarioInativo';
+
 
 const AppRoutes = () => {
     
-    // 1. Proteção Básica: Só logado entra
     const Private = ({ children }) => {
         const { authenticated, loading } = useContext(AuthContext);
-        if (loading) return <div style={{color:'#fff', padding: 20}}>Carregando...</div>;
+        if (loading) return <div style={{color:'#888', padding: 20}}>Carregando...</div>;
         if (!authenticated) return <Navigate to="/" />;
         return children;
     };
 
-    // 2. Proteção Avançada: Só Admin ou Máximo entra
-    // Se for Coordenador, joga para Acesso Negado
     const AdminOnly = ({ children }) => {
         const { user } = useContext(AuthContext);
-        
-        // Se o usuário já carregou e é COORDENADOR, bloqueia
         if (user && user.tipo === 'COORDENADOR') {
             return <Navigate to="/acesso_negado" replace />;
         }
-        
         return children;
     };
 
     return (
         <Routes>
             <Route path="/" element={<Login />} />
-            
-            {/* Rota de Acesso Negado (Fora do Layout ou Dentro, você escolhe. Fora dá mais destaque) */}
             <Route path="/acesso_negado" element={<AcessoNegado />} />
 
+            {/* === ÁREA ATIVA (Menu Padrão) === */}
             <Route element={<Private><Layout /></Private>}>
-                
                 <Route path="/visao_geral" element={<VisaoGeral />} />
 
-                {/* --- MÓDULOS LIVRES (Todos acessam) --- */}
                 <Route path="/cargos" element={<Cargo />} /> 
                 <Route path="/cargo_cadastro" element={<CargoCadastro />} />
                 <Route path="/setores" element={<Setor />} />
@@ -77,29 +79,30 @@ const AppRoutes = () => {
                 <Route path="/ferramenta_cadastro" element={<FerramentaCadastro />} />
                 <Route path="/emprestimos" element={<Emprestimo />} />
                 <Route path="/emprestimo_cadastro" element={<EmprestimoCadastro />} />
-                <Route path="/emprestimo_inativo" element={<div style={{color:'white', padding: 20}}>Histórico de Inativos</div>} />
                 <Route path="/manutencoes" element={<Manutencao />} />
                 <Route path="/manutencao_cadastro" element={<ManutencaoCadastro />} />
-
                 <Route path="/teste_ferramentas" element={<ListaFerramentas />} />
 
-                {/* --- MÓDULOS RESTRITOS (Filiais e Usuários) --- */}
-                {/* Envolvemos as rotas no componente AdminOnly */}
+                <Route path="/filiais" element={<AdminOnly><Filial /></AdminOnly>} />
+                <Route path="/filial_cadastro" element={<AdminOnly><FilialCadastro /></AdminOnly>} />
+                <Route path="/usuarios" element={<AdminOnly><Usuario /></AdminOnly>} />
+                <Route path="/usuario_cadastro" element={<AdminOnly><UsuarioCadastro /></AdminOnly>} />
+            </Route>
+
+            {/* === ÁREA INATIVA (Menu Inativos - Novo Layout) === */}
+            <Route element={<Private><LayoutInativos /></Private>}>
+                <Route path="/emprestimos_inativos" element={<EmprestimoInativo />} />
+                <Route path="/ferramentas_inativas" element={<FerramentaInativo />} />
+                <Route path="/funcionarios_inativos" element={<FuncionarioInativo />} />
+                <Route path="/manutencoes_inativas" element={<ManutencaoInativo />} />
                 
-                <Route path="/filiais" element={
-                    <AdminOnly><Filial /></AdminOnly>
-                } />
-                <Route path="/filial_cadastro" element={
-                    <AdminOnly><FilialCadastro /></AdminOnly>
-                } />
-
-                <Route path="/usuarios" element={
-                     <AdminOnly><Usuario /></AdminOnly>
-                } />
-                <Route path="/usuario_cadastro" element={
-                    <AdminOnly><UsuarioCadastro /></AdminOnly>
-                } />
-
+                <Route path="/cargos_inativos" element={<CargoInativo />} />
+                <Route path="/setores_inativos" element={<SetorInativo />} />
+                <Route path="/depositos_inativos" element={<DepositoInativo />} />
+                
+                {/* Restritos também nos inativos */}
+                <Route path="/filiais_inativas" element={<AdminOnly><FilialInativo /></AdminOnly>} />
+                <Route path="/usuarios_inativos" element={<AdminOnly><UsuarioInativo /></AdminOnly>} />
             </Route>
 
             <Route path="*" element={<Navigate to="/visao_geral" />} />

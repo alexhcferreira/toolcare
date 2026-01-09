@@ -1,33 +1,38 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import styles from '../Ferramenta/ferramenta.module.css'; // Usando CSS próprio (cópia do ferramenta)
+import styles from './ferramenta_inativo.module.css';
 import api from '../../../services/api';
-import CardFuncionario from '../../../components/Cards/Funcionario/CardFuncionario';
+import CardFerramenta from '../../../components/Cards/Ferramenta/CardFerramenta';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 
+// IMPORTS NOVOS
 import Select from 'react-select';
-import { filterSelectStyles } from '../../../components/CustomSelect/filterSelectStyles';
+import { filterSelectStyles } from '../../../components/CustomSelect/filterSelectStyles'; // Estilo branco
 
-const Funcionario = () => {
+const FerramentaInativo = () => {
     const [buscaInput, setBuscaInput] = useState('');
     const [buscaDebounced, setBuscaDebounced] = useState('');
     
-    // Filtros
+    // Filtros (Objetos do React Select)
     const [filialSelecionada, setFilialSelecionada] = useState(null); 
     const [campoBusca, setCampoBusca] = useState({ value: 'global', label: 'Todos os campos' });
+    
+    // Estado específico para o Multi-Select de Status
+    const [statusSelecionados, setStatusSelecionados] = useState([]);
 
     const [listaFiliais, setListaFiliais] = useState([]);
     const queryClient = useQueryClient();
 
-    // Opções de Campos para Funcionário
+    // Opções de Campos
     const opcoesCampos = [
         { value: 'global', label: 'Todos os campos' },
         { value: 'nome', label: 'Nome' },
-        { value: 'matricula', label: 'Matrícula' },
-        { value: 'cpf', label: 'CPF' },
-        { value: 'cargo', label: 'Cargo' },
-        { value: 'setor', label: 'Setor' }
+        { value: 'numero_serie', label: 'Nº de Série' },
+        { value: 'descricao', label: 'Descrição' },
+        { value: 'deposito', label: 'Depósito' },
+        { value: 'data_aquisicao', label: 'Data Aquisição' }
     ];
+
 
     useEffect(() => {
         const loadFiliais = async () => {
@@ -35,7 +40,8 @@ const Funcionario = () => {
                 const response = await api.get('/api/filiais/');
                 const dados = response.data.results || response.data;
                 const formatados = dados.map(f => ({ value: f.id, label: f.nome }));
-                formatados.unshift({ value: '', label: 'Todas as Filiais' });
+                // Adiciona opção "Todas" no início
+                formatados.unshift({ value: '', label: 'Todas as Filiais' } );
                 setListaFiliais(formatados);
             } catch (error) {
                 console.error("Erro ao carregar filiais", error);
@@ -44,6 +50,7 @@ const Funcionario = () => {
         loadFiliais();
     }, []);
 
+    // Debounce do Input de Texto
     useEffect(() => {
         const timer = setTimeout(() => {
             setBuscaDebounced(buscaInput);
@@ -51,29 +58,45 @@ const Funcionario = () => {
         return () => clearTimeout(timer);
     }, [buscaInput]);
 
-    const fetchFuncionarios = async ({ pageParam = 1 }) => {
+    useEffect(() => {
+        if (campoBusca.value !== 'estado') {
+            setStatusSelecionados([]);
+        }
+    }, [campoBusca]);
+
+    const fetchFerramentas = async ({ pageParam = 1 }) => {
         const params = { 
             page: pageParam,
-            somente_ativos: 'true' // <--- Filtro de Ativos
+            somente_inativas: 'true' 
         };
 
+        // 1. Filtro de Filial
         if (filialSelecionada && filialSelecionada.value) {
             params.filial = filialSelecionada.value;
         }
 
-        if (buscaDebounced) {
-            if (campoBusca.value === 'global') {
-                params.search = buscaDebounced;
-            } else {
+        // 2. Lógica de Campos Específicos
+        if (campoBusca.value === 'global') {
+            params.search = buscaDebounced;
+        } else if (campoBusca.value === 'estado') {
+            // Envia status separados por vírgula (ex: "DISPONIVEL,EMPRESTADA")
+            if (statusSelecionados.length > 0) {
+                params.search_field = 'estado';
+                params.search_value = statusSelecionados.map(s => s.value).join(',');
+            }
+        } else {
+            // Outros campos (Texto ou Data)
+            if (buscaDebounced) {
                 params.search_field = campoBusca.value;
                 params.search_value = buscaDebounced;
             }
         }
 
-        const response = await api.get(`/api/funcionarios/`, { params });
+        const response = await api.get(`/api/ferramentas/`, { params });
         return response.data; 
     };
 
+    // React Query Key complexa: recarrega se qualquer filtro mudar
     const {
         data,
         fetchNextPage,
@@ -81,8 +104,8 @@ const Funcionario = () => {
         isFetchingNextPage,
         isLoading, 
     } = useInfiniteQuery({
-        queryKey: ['funcionarios', buscaDebounced, filialSelecionada, campoBusca], 
-        queryFn: fetchFuncionarios,
+        queryKey: ['ferramentas', buscaDebounced, filialSelecionada, campoBusca, statusSelecionados, 'somente_inativas'], 
+        queryFn: fetchFerramentas,
         getNextPageParam: (lastPage) => {
             if (!lastPage.next) return undefined;
             const url = new URL(lastPage.next);
@@ -99,16 +122,15 @@ const Funcionario = () => {
     };
 
     const handleUpdate = () => {
-        queryClient.invalidateQueries(['funcionarios']);
+        queryClient.invalidateQueries(['ferramentas']);
     };
 
     return (
         <div className={styles.container}>
-            <Link to="/funcionario_cadastro" className={styles.addButton}>+</Link>
 
             <div className={styles.searchBarContainer}>
                 
-                {/* 1. FILIAL */}
+                {/* 1. SELECT FILIAL (React-Select) */}
                 <div style={{ width: '220px' }}>
                     <Select
                         options={listaFiliais}
@@ -116,20 +138,21 @@ const Funcionario = () => {
                         onChange={setFilialSelecionada}
                         placeholder="Todas as Filiais"
                         styles={filterSelectStyles}
-                        isSearchable={false} 
+                        isSearchable={false} // Remove cursor de texto
                     />
                 </div>
 
                 <div className={styles.divider}></div>
 
-                {/* 2. CATEGORIA */}
+                {/* 2. SELECT CATEGORIA */}
                 <div style={{ width: '200px' }}>
                     <Select
                         options={opcoesCampos}
                         value={campoBusca}
                         onChange={(opt) => {
                             setCampoBusca(opt);
-                            setBuscaInput(''); 
+                            setBuscaInput(''); // Limpa texto ao trocar categoria
+                            setStatusSelecionados([]); // Limpa status
                         }}
                         styles={filterSelectStyles}
                         isSearchable={false}
@@ -138,40 +161,40 @@ const Funcionario = () => {
 
                 <div className={styles.divider}></div>
 
-                {/* 3. INPUT TEXTO */}
-                <div style={{ flex: 1 }}>
-                    <input
-                        className={styles.searchInput}
-                        type='search'
-                        placeholder={
-                            campoBusca.value === 'global' ? "Pesquisar..." : 
-                            `Filtrar por ${campoBusca.label}...`
-                        }
-                        value={buscaInput}
-                        onChange={(e) => setBuscaInput(e.target.value)}
-                    />
+                {/* 3. ÁREA DINÂMICA (Input Texto OU Select Estado) */}
+                <div style={{ flex: 1 }}> 
+                        <input
+                            className={styles.searchInput}
+                            type='search'
+                            placeholder={
+                                campoBusca.value === 'data_aquisicao' ? "Ex: xx/05/2024 (Use 'xx' para qualquer)" : 
+                                "Pesquisar..."
+                            }
+                            value={buscaInput}
+                            onChange={(e) => setBuscaInput(e.target.value)}
+                        />
                 </div>
             </div>
 
             <div className={`${styles.cardArea} dark-scroll`} onScroll={handleScroll}>
                 {isLoading ? (
-                    <p style={{color: '#888', fontSize: '1.6rem'}}>Carregando...</p>
+                    <p style={{color: '#000', fontSize: '1.6rem'}}>Carregando...</p>
                 ) : (
                     data?.pages.map((page, i) => (
                         <React.Fragment key={i}>
-                            {page.results.map(func => (
-                                <CardFuncionario key={func.id} funcionario={func} onUpdate={handleUpdate} />
+                            {page.results.map(f => (
+                                <CardFerramenta key={f.id} ferramenta={f} onUpdate={handleUpdate} />
                             ))}
                         </React.Fragment>
                     ))
                 )}
                 {!isLoading && data?.pages[0].results.length === 0 && (
-                    <p style={{color: '#888', fontSize: '1.6rem'}}>Nenhum funcionário encontrado.</p>
+                    <p style={{color: '#000', fontSize: '1.6rem'}}>Nenhuma ferramenta encontrada.</p>
                 )}
-                {isFetchingNextPage && <p style={{color: '#888', fontSize: '1.4rem'}}>Carregando...</p>}
+                {isFetchingNextPage && <p style={{color: '#000', fontSize: '1.4rem'}}>Carregando...</p>}
             </div>
         </div>
     );
 }
 
-export default Funcionario;
+export default FerramentaInativo;

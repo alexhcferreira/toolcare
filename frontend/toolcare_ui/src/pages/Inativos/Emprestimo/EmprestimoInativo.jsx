@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import styles from '../Ferramenta/ferramenta.module.css'; // Usando CSS próprio (cópia do ferramenta)
+import styles from '../Ferramenta/ferramenta_inativo.module.css'; // Copie de ferramenta.module.css
 import api from '../../../services/api';
-import CardFuncionario from '../../../components/Cards/Funcionario/CardFuncionario';
+import CardEmprestimo from '../../../components/Cards/Emprestimo/CardEmprestimo';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 
 import Select from 'react-select';
 import { filterSelectStyles } from '../../../components/CustomSelect/filterSelectStyles';
 
-const Funcionario = () => {
+const EmprestimoInativo = () => {
     const [buscaInput, setBuscaInput] = useState('');
     const [buscaDebounced, setBuscaDebounced] = useState('');
     
@@ -19,14 +19,17 @@ const Funcionario = () => {
     const [listaFiliais, setListaFiliais] = useState([]);
     const queryClient = useQueryClient();
 
-    // Opções de Campos para Funcionário
+    // Campos disponíveis para filtro específico
     const opcoesCampos = [
         { value: 'global', label: 'Todos os campos' },
-        { value: 'nome', label: 'Nome' },
-        { value: 'matricula', label: 'Matrícula' },
-        { value: 'cpf', label: 'CPF' },
-        { value: 'cargo', label: 'Cargo' },
-        { value: 'setor', label: 'Setor' }
+        { value: 'nome', label: 'Nome do Empréstimo' },
+        { value: 'ferramenta', label: 'Nome da Ferramenta' },
+        { value: 'serial', label: 'Nº de Série da Ferramenta' },
+        { value: 'funcionario', label: 'Nome do Funcionário' },
+        { value: 'matricula', label: 'Matrícula do Funcionário' },
+        { value: 'data_emprestimo', label: 'Data de Início' },
+        { value: 'data_devolucao', label: 'Data de Devolução' },
+        { value: 'observacoes', label: 'Observações' }
     ];
 
     useEffect(() => {
@@ -51,10 +54,10 @@ const Funcionario = () => {
         return () => clearTimeout(timer);
     }, [buscaInput]);
 
-    const fetchFuncionarios = async ({ pageParam = 1 }) => {
+    const fetchEmprestimos = async ({ pageParam = 1 }) => {
         const params = { 
             page: pageParam,
-            somente_ativos: 'true' // <--- Filtro de Ativos
+            ativo: 'false' // <--- FILTRA SOMENTE INATIVOS
         };
 
         if (filialSelecionada && filialSelecionada.value) {
@@ -70,7 +73,7 @@ const Funcionario = () => {
             }
         }
 
-        const response = await api.get(`/api/funcionarios/`, { params });
+        const response = await api.get(`/api/emprestimos/`, { params });
         return response.data; 
     };
 
@@ -81,8 +84,8 @@ const Funcionario = () => {
         isFetchingNextPage,
         isLoading, 
     } = useInfiniteQuery({
-        queryKey: ['funcionarios', buscaDebounced, filialSelecionada, campoBusca], 
-        queryFn: fetchFuncionarios,
+        queryKey: ['emprestimos', buscaDebounced, filialSelecionada, campoBusca], 
+        queryFn: fetchEmprestimos,
         getNextPageParam: (lastPage) => {
             if (!lastPage.next) return undefined;
             const url = new URL(lastPage.next);
@@ -99,12 +102,12 @@ const Funcionario = () => {
     };
 
     const handleUpdate = () => {
-        queryClient.invalidateQueries(['funcionarios']);
+        queryClient.invalidateQueries(['emprestimos']);
     };
 
     return (
         <div className={styles.container}>
-            <Link to="/funcionario_cadastro" className={styles.addButton}>+</Link>
+            <Link to="/emprestimo_cadastro" className={styles.addButton}>+</Link>
 
             <div className={styles.searchBarContainer}>
                 
@@ -123,7 +126,7 @@ const Funcionario = () => {
                 <div className={styles.divider}></div>
 
                 {/* 2. CATEGORIA */}
-                <div style={{ width: '200px' }}>
+                <div style={{ width: '220px' }}>
                     <Select
                         options={opcoesCampos}
                         value={campoBusca}
@@ -144,7 +147,8 @@ const Funcionario = () => {
                         className={styles.searchInput}
                         type='search'
                         placeholder={
-                            campoBusca.value === 'global' ? "Pesquisar..." : 
+                            campoBusca.value === 'data_devolucao' ? "xx/xx/xxxx ou 'Sem'..." :
+                            campoBusca.value.includes('data') ? "xx/xx/xxxx..." : 
                             `Filtrar por ${campoBusca.label}...`
                         }
                         value={buscaInput}
@@ -155,23 +159,23 @@ const Funcionario = () => {
 
             <div className={`${styles.cardArea} dark-scroll`} onScroll={handleScroll}>
                 {isLoading ? (
-                    <p style={{color: '#888', fontSize: '1.6rem'}}>Carregando...</p>
+                    <p style={{color: '#000000ff', fontSize: '1.6rem'}}>Carregando...</p>
                 ) : (
                     data?.pages.map((page, i) => (
                         <React.Fragment key={i}>
-                            {page.results.map(func => (
-                                <CardFuncionario key={func.id} funcionario={func} onUpdate={handleUpdate} />
+                            {page.results.map(emp => (
+                                <CardEmprestimo key={emp.id} emprestimo={emp} onUpdate={handleUpdate} />
                             ))}
                         </React.Fragment>
                     ))
                 )}
                 {!isLoading && data?.pages[0].results.length === 0 && (
-                    <p style={{color: '#888', fontSize: '1.6rem'}}>Nenhum funcionário encontrado.</p>
+                    <p style={{color: '#000000ff', fontSize: '1.6rem'}}>Nenhum empréstimo encontrado.</p>
                 )}
-                {isFetchingNextPage && <p style={{color: '#888', fontSize: '1.4rem'}}>Carregando...</p>}
+                {isFetchingNextPage && <p style={{color: '#000', fontSize: '1.4rem'}}>Carregando...</p>}
             </div>
         </div>
     );
 }
 
-export default Funcionario;
+export default EmprestimoInativo;

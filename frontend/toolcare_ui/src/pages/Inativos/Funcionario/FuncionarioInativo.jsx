@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import styles from '../Ferramenta/ferramenta.module.css'; // Usando CSS próprio (cópia do ferramenta)
+import styles from '../Ferramenta/ferramenta_inativo.module.css'; // Usando CSS próprio (cópia do ferramenta)
 import api from '../../../services/api';
 import CardFuncionario from '../../../components/Cards/Funcionario/CardFuncionario';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
@@ -8,7 +8,7 @@ import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import Select from 'react-select';
 import { filterSelectStyles } from '../../../components/CustomSelect/filterSelectStyles';
 
-const Funcionario = () => {
+const FuncionarioInativo = () => {
     const [buscaInput, setBuscaInput] = useState('');
     const [buscaDebounced, setBuscaDebounced] = useState('');
     
@@ -54,7 +54,7 @@ const Funcionario = () => {
     const fetchFuncionarios = async ({ pageParam = 1 }) => {
         const params = { 
             page: pageParam,
-            somente_ativos: 'true' // <--- Filtro de Ativos
+            somente_inativos: 'true' // <--- Filtro de Inativos
         };
 
         if (filialSelecionada && filialSelecionada.value) {
@@ -174,4 +174,4 @@ const Funcionario = () => {
     );
 }
 
-export default Funcionario;
+export default FuncionarioInativo;

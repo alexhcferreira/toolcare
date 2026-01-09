@@ -6,7 +6,7 @@
     min-height: 48rem; 
     border-radius: 1rem;
     overflow: hidden;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+    box-shadow: 0px 20px 25px rgba(0, 0, 0, 0.158);
     background-color: #ffffff;
     transition: transform 0.2s, box-shadow 0.2s;
 }

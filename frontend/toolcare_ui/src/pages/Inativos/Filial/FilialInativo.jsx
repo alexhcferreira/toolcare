@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import styles from './filial.module.css'; // Crie copiando de funcionario.module.css
+import styles from './filial_inativo.module.css'; // Crie copiando de funcionario.module.css
 import api from '../../../services/api';
 import CardFilial from '../../../components/Cards/Filial/CardFilial';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 
-const Filial = () => {
+const FilialInativo = () => {
     const [buscaInput, setBuscaInput] = useState('');
     const [buscaDebounced, setBuscaDebounced] = useState('');
     const queryClient = useQueryClient();
@@ -20,14 +20,14 @@ const Filial = () => {
             params: { 
                 page: pageParam, 
                 search: buscaDebounced,
-                somente_ativos: 'true' // <--- FILTRO ADICIONADO
+                somente_inativos: 'true' // <--- FILTRO ADICIONADO
             }
         });
         return response.data;
     };
 
     const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useInfiniteQuery({
-        queryKey: ['filiais', buscaDebounced, 'somente_ativos'],
+        queryKey: ['filiais', buscaDebounced, 'somente_inativos'],
         queryFn: fetchFiliais,
         getNextPageParam: (lastPage) => {
             if (!lastPage.next) return undefined;
@@ -62,7 +62,7 @@ const Filial = () => {
 
             <div className={`${styles.cardArea} dark-scroll`} onScroll={handleScroll}>
                 {isLoading ? (
-                    <p style={{color: '#888', fontSize: '1.6rem'}} className={styles.emptyMessage}>Carregando...</p>
+                    <p style={{color: '#000', fontSize: '1.6rem'}} className={styles.emptyMessage}>Carregando...</p>
                 ) : (
                     data?.pages.map((page, i) => (
                         <React.Fragment key={i}>
@@ -74,13 +74,13 @@ const Filial = () => {
                 )}
                 
                 {!isLoading && data?.pages[0].results.length === 0 && (
-                    <p style={{color: '#888', fontSize: '1.6rem'}} className={styles.emptyMessage}>Nenhuma filial encontrada.</p>
+                    <p style={{color: '#000', fontSize: '1.6rem'}} className={styles.emptyMessage}>Nenhuma filial encontrada.</p>
                 )}
                 
-                {isFetchingNextPage && <p style={{color: '#888', fontSize: '1.4rem'}} className={styles.emptyMessage}>Carregando...</p>}
+                {isFetchingNextPage && <p style={{color: '#000000ff', fontSize: '1.4rem'}} className={styles.emptyMessage}>Carregando...</p>}
             </div>
         </div>
     );
 }
 
-export default Filial;
+export default FilialInativo;

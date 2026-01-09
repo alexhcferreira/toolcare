@@ -177,7 +177,7 @@ const Manutencao = () => {
 
             <div className={`${styles.cardArea} dark-scroll`} onScroll={handleScroll}>
                 {isLoading ? (
-                    <p style={{color: 'white', fontSize: '1.6rem'}}>Carregando...</p>
+                    <p style={{color: '#888', fontSize: '1.6rem'}}>Carregando...</p>
                 ) : (
                     data?.pages.map((page, i) => (
                         <React.Fragment key={i}>

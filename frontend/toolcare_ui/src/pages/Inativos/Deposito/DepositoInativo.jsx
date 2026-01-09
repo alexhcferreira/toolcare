@@ -1,34 +1,34 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import styles from './filial.module.css'; // Crie copiando de funcionario.module.css
+// Nota: Se você criou o arquivo deposito.module.css, mude o import abaixo para ele.
+// Se está reutilizando o de filial propositalmente, mantenha assim.
+import styles from '../Filial/filial_inativo.module.css'; 
 import api from '../../../services/api';
-import CardFilial from '../../../components/Cards/Filial/CardFilial';
+import CardDeposito from '../../../components/Cards/Deposito/CardDeposito';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 
-const Filial = () => {
+const DepositoInativo = () => {
     const [buscaInput, setBuscaInput] = useState('');
     const [buscaDebounced, setBuscaDebounced] = useState('');
     const queryClient = useQueryClient();
 
+    // Debounce: Espera o usuário parar de digitar por 500ms
     React.useEffect(() => {
         const timer = setTimeout(() => setBuscaDebounced(buscaInput), 500);
         return () => clearTimeout(timer);
     }, [buscaInput]);
 
-    const fetchFiliais = async ({ pageParam = 1 }) => {
-        const response = await api.get(`/api/filiais/`, {
-            params: { 
-                page: pageParam, 
-                search: buscaDebounced,
-                somente_ativos: 'true' // <--- FILTRO ADICIONADO
-            }
+    const fetchDepositos = async ({ pageParam = 1 }) => {
+        // O parâmetro 'search' é enviado para o Django, que usará os search_fields que configuramos acima
+        const response = await api.get(`/api/depositos/`, {
+            params: { page: pageParam, search: buscaDebounced, somente_inativos: 'true' }
         });
         return response.data;
     };
 
     const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useInfiniteQuery({
-        queryKey: ['filiais', buscaDebounced, 'somente_ativos'],
-        queryFn: fetchFiliais,
+        queryKey: ['depositos', buscaDebounced, 'somente_inativos'],
+        queryFn: fetchDepositos,
         getNextPageParam: (lastPage) => {
             if (!lastPage.next) return undefined;
             const url = new URL(lastPage.next);
@@ -44,17 +44,18 @@ const Filial = () => {
         }
     };
 
-    const handleUpdate = () => queryClient.invalidateQueries(['filiais']);
+    const handleUpdate = () => queryClient.invalidateQueries(['depositos']);
 
     return (
         <div className={styles.container}>
-            <Link to="/filial_cadastro" className={styles.addButton}>+</Link>
+            <Link to="/deposito_cadastro" className={styles.addButton}>+</Link>
 
             <div className={styles.searchBarContainer}>
                 <input
                     className={styles.searchInput}
                     type='search'
-                    placeholder="Pesquisar filial..."
+                    // ATUALIZADO: Placeholder mais descritivo
+                    placeholder="Pesquisar depósito ou filial..."
                     value={buscaInput}
                     onChange={(e) => setBuscaInput(e.target.value)}
                 />
@@ -62,25 +63,25 @@ const Filial = () => {
 
             <div className={`${styles.cardArea} dark-scroll`} onScroll={handleScroll}>
                 {isLoading ? (
-                    <p style={{color: '#888', fontSize: '1.6rem'}} className={styles.emptyMessage}>Carregando...</p>
+                    <p style={{color: '#000', fontSize: '1.6rem'}} className={styles.emptyMessage}>Carregando...</p>
                 ) : (
                     data?.pages.map((page, i) => (
                         <React.Fragment key={i}>
-                            {page.results.map(filial => (
-                                <CardFilial key={filial.id} filial={filial} onUpdate={handleUpdate} />
+                            {page.results.map(dep => (
+                                <CardDeposito key={dep.id} deposito={dep} onUpdate={handleUpdate} />
                             ))}
                         </React.Fragment>
                     ))
                 )}
                 
                 {!isLoading && data?.pages[0].results.length === 0 && (
-                    <p style={{color: '#888', fontSize: '1.6rem'}} className={styles.emptyMessage}>Nenhuma filial encontrada.</p>
+                    <p style={{color: '#000', fontSize: '1.6rem'}} className={styles.emptyMessage}>Nenhum depósito encontrado.</p>
                 )}
                 
-                {isFetchingNextPage && <p style={{color: '#888', fontSize: '1.4rem'}} className={styles.emptyMessage}>Carregando...</p>}
+                {isFetchingNextPage && <p style={{color: '#000', fontSize: '1.4rem'}} className={styles.emptyMessage}>Carregando...</p>}
             </div>
         </div>
     );
 }
 
-export default Filial;
+export default DepositoInativo;

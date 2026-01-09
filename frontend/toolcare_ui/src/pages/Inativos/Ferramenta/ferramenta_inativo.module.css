@@ -8,6 +8,7 @@
     padding-top: 2.6rem; 
     z-index: 1; 
     overflow: hidden; 
+    background-color: white;
 }
 
 .addButton {
@@ -131,3 +132,25 @@ input[type="search"]::-ms-clear { display: none; }
     scrollbar-color: #444 #2c2c2c;
 }
 
+/* Define a largura da barra */
+::-webkit-scrollbar  { 
+  width: 12px !important; /* Ajuste se quiser ela mais fina ou larga */ 
+}
+
+/* Define a cor do fundo da trilha (onde o 'dedo' desliza) */
+::-webkit-scrollbar-track {
+  background: #ffffff !important;
+}
+
+/* Define a cor do 'dedo' (a parte que se move) */
+::-webkit-scrollbar-thumb {
+  background: #ffffff !important;
+  /* Opcional: borda leve para você ainda conseguir enxergar onde está */
+  /* border: 1px solid #f0f0f0; */
+}
+
+/* Para navegadores Firefox (que usam um padrão diferente) */
+* {
+  scrollbar-width: medium !important;
+  scrollbar-color: #b1b1b1 #ffffff !important;
+}
