@@ -99,11 +99,18 @@ class DepositoSerializer(serializers.ModelSerializer):
             self.fields['ativo'].read_only = True
 
 class SetorSerializer(serializers.ModelSerializer):
-    class Meta: model = Setor; fields = ['id', 'nome_setor', 'descricao_setor', 'ativo']; read_only_fields = ['id']
+    class Meta: 
+        model = Setor
+        fields = ['id', 'nome_setor', 'descricao_setor', 'ativo']
+        read_only_fields = ['id']
+        
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if self.instance: self.fields['nome_setor'].read_only = True
-        else: self.fields['ativo'].read_only = True
+        
+        # MUDANÇA: Removi a linha que bloqueava 'nome_setor'
+        if not self.instance:
+            self.fields['ativo'].read_only = True
+            
     def validate_nome_setor(self, value):
         query = Setor.objects.filter(nome_setor__iexact=value)
         if self.instance: query = query.exclude(pk=self.instance.pk)
@@ -114,8 +121,8 @@ class CargoSerializer(serializers.ModelSerializer):
     class Meta: model = Cargo; fields = ['id', 'nome_cargo', 'descricao_cargo', 'ativo']; read_only_fields = ['id']
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if self.instance: self.fields['nome_cargo'].read_only = True
-        else: self.fields['ativo'].read_only = True
+        if not self.instance:
+            self.fields['ativo'].read_only = True
     def validate_nome_cargo(self, value):
         query = Cargo.objects.filter(nome_cargo__iexact=value)
         if self.instance: query = query.exclude(pk=self.instance.pk)

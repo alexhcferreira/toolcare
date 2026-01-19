@@ -1,7 +1,7 @@
 import React, { useState, useContext } from "react";
 import styles from "./modal_filial.module.css"; 
 import api from "../../../services/api";
-import { FaTimes, FaCheck, FaTrash, FaEdit } from "react-icons/fa";
+import { FaTimes, FaCheck, FaTrash, FaEdit, FaUndo } from "react-icons/fa";
 import { AuthContext } from "../../../context/AuthContext";
 
 // Imports
@@ -10,10 +10,12 @@ import FalhaEdicaoComponent from "../../Avisos/FalhaEdicao/FalhaEdicao";
 import ConfirmarRemocaoComponent from "../../Avisos/ConfirmarRemocao/ConfirmarRemocao";
 import RemovidoComponent from "../../Avisos/Removido/Removido";
 import FalhaRemocaoComponent from "../../Avisos/FalhaRemocao/FalhaRemocao";
-import AvisoEdicaoBloqueada from "../../Avisos/BloqueioEdicao/BloqueioEdicao";
+import ReativadoComponent from "../../Avisos/Reativado/Reativado";
+import DesejaReativarComponent from "../../Avisos/DesejaReativar/DesejaReativar";
 
 import ConfirmarDesativacaoFilialComponent from "../../Avisos/ConfirmarDesativacaoFilial/ConfirmarDesativacaoFilial";
 import BloqueioDesativarFilialComponent from "../../Avisos/BloqueioDesativarFilial/BloqueioDesativarFilial";
+
 const ModalFilial = ({ filial, onClose, onUpdate }) => {
     const { user } = useContext(AuthContext);
     const [isEditing, setIsEditing] = useState(false);
@@ -27,6 +29,10 @@ const ModalFilial = ({ filial, onClose, onUpdate }) => {
     const [showConfirmacao, setShowConfirmacao] = useState(false);
     const [showBloqueio, setShowBloqueio] = useState(false);
     const [listaBloqueio, setListaBloqueio] = useState([]);
+
+    // Reativação
+    const [showReativarConfirm, setShowReativarConfirm] = useState(false);
+    const [showReativado, setShowReativado] = useState(false);
 
     const [editData, setEditData] = useState({
         nome: filial.nome,
@@ -54,49 +60,55 @@ const ModalFilial = ({ filial, onClose, onUpdate }) => {
         }
     };
 
-    // --- NOVA LÓGICA DO BOTÃO DELETAR ---
     const handleDeactivateClick = async () => {
         try {
-            // 1. Tenta simular a desativação (preview=true)
             await api.patch(`/api/filiais/${filial.id}/desativar/?preview=true`);
-            
-            // 2. Se não deu erro (caiu no 200 OK), significa que pode desativar.
-            // Então mostramos a confirmação crítica.
             setShowConfirmacao(true);
-
         } catch (error) {
-            console.error("Erro na verificação:", error.response);
-
-            // 3. Se deu erro 400 com lista, é Bloqueio. Mostramos AGORA.
             if (error.response && error.response.status === 400 && error.response.data.lista_ferramentas) {
                 setListaBloqueio(error.response.data.lista_ferramentas);
                 setShowBloqueio(true);
             } else {
-                // Outro erro qualquer
                 setShowFalhaRemocao(true);
                 setTimeout(() => setShowFalhaRemocao(false), 3000);
             }
         }
     };
 
-    // --- EXECUÇÃO REAL APÓS CONFIRMAR ---
     const handleConfirmDesativar = async () => {
         setShowConfirmacao(false);
-        
         try {
-            // Agora chama SEM o preview para apagar de verdade
             await api.patch(`/api/filiais/${filial.id}/desativar/`);
-            
             setShowRemovido(true);
             setTimeout(() => {
                 setShowRemovido(false);
                 if (onUpdate) onUpdate();
                 onClose();
             }, 2500);
-
         } catch (error) {
             console.error("Erro ao desativar:", error);
-            // Caso raro onde passou no preview mas falhou agora
+            setShowFalhaRemocao(true);
+            setTimeout(() => setShowFalhaRemocao(false), 3000);
+        }
+    };
+
+    // --- REATIVAR ---
+    const handleReativarClick = () => {
+        setShowReativarConfirm(true);
+    };
+
+    const handleConfirmReativar = async () => {
+        setShowReativarConfirm(false);
+        try {
+            await api.patch(`/api/filiais/${filial.id}/`, { ativo: true });
+            setShowReativado(true);
+            setTimeout(() => {
+                setShowReativado(false);
+                if (onUpdate) onUpdate();
+                onClose();
+            }, 2500);
+        } catch (error) {
+            console.error("Erro ao reativar:", error);
             setShowFalhaRemocao(true);
             setTimeout(() => setShowFalhaRemocao(false), 3000);
         }
@@ -104,40 +116,48 @@ const ModalFilial = ({ filial, onClose, onUpdate }) => {
 
     return (
         <div className={styles.overlay} onClick={onClose}>
-            {/* Avisos */}
+            {/* Proteção contra fechamento acidental */}
+            <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
+                <div style={{ pointerEvents: 'auto' }} onClick={(e) => e.stopPropagation()}>
+                    {showBloqueio && (
+                        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 99999 }}>
+                            <BloqueioDesativarFilialComponent 
+                                listaFerramentas={listaBloqueio} 
+                                onClose={() => setShowBloqueio(false)}
+                            />
+                        </div>
+                    )}
+                    {showConfirmacao && (
+                        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 99998 }}>
+                            <ConfirmarDesativacaoFilialComponent 
+                                onConfirm={handleConfirmDesativar} 
+                                onCancel={() => setShowConfirmacao(false)} 
+                            />
+                        </div>
+                    )}
+                    {showReativarConfirm && (
+                        <DesejaReativarComponent 
+                            onConfirm={handleConfirmReativar} 
+                            onCancel={() => setShowReativarConfirm(false)} 
+                        />
+                    )}
+                </div>
+            </div>
+
             {showEditado && <EditadoComponent />}
             {showFalhaEdicao && <FalhaEdicaoComponent />}
             {showRemovido && <RemovidoComponent />}
             {showFalhaRemocao && <FalhaRemocaoComponent />}
-
-            {/* ZONA DE PROTEÇÃO DE BLOQUEIO */}
-            {showBloqueio && (
-                <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 99999 }}>
-                    <BloqueioDesativarFilialComponent 
-                        listaFerramentas={listaBloqueio} 
-                        onClose={() => setShowBloqueio(false)}
-                    />
-                </div>
-            )}
-            
-            {showConfirmacao && (
-                <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 99998 }}>
-                    <ConfirmarDesativacaoFilialComponent 
-                        onConfirm={handleConfirmDesativar} 
-                        onCancel={() => setShowConfirmacao(false)} 
-                    />
-                </div>
-            )}
+            {showReativado && <ReativadoComponent />}
 
             <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-                
                 <button className={styles.closeBtn} onClick={onClose}>
                     <FaTimes />
                 </button>
 
                 <div className={styles.content}>
                     <h2 className={styles.title}>
-                        {isEditing ? "Editar Filial" : "Detalhes da Filial"}
+                        {!filial.ativo ? "Filial Inativa" : (isEditing ? "Editar Filial" : "Detalhes da Filial")}
                     </h2>
 
                     <div className={styles.infoGroup}>
@@ -159,22 +179,30 @@ const ModalFilial = ({ filial, onClose, onUpdate }) => {
                     </div>
 
                     <div className={styles.actions}>
-                        {isEditing ? (
-                            <button className={styles.saveBtn} onClick={handleSave}>
-                                <FaCheck /> SALVAR
+                        {!filial.ativo ? (
+                            // SE INATIVO: Apenas botão REATIVAR
+                            <button className={styles.saveBtn} onClick={handleReativarClick} style={{backgroundColor: '#007bff'}}>
+                                <FaUndo /> REATIVAR
                             </button>
                         ) : (
-                            <>
-                                <button className={styles.editBtn} onClick={() => setIsEditing(true)}>
-                                    <FaEdit /> EDITAR
+                            // SE ATIVO:
+                            isEditing ? (
+                                <button className={styles.saveBtn} onClick={handleSave}>
+                                    <FaCheck /> SALVAR
                                 </button>
-                                
-                                {user && user.tipo === 'MAXIMO' && (
-                                    <button className={styles.deleteBtn} onClick={handleDeactivateClick}>
-                                        <FaTrash /> DESATIVAR
+                            ) : (
+                                <>
+                                    <button className={styles.editBtn} onClick={() => setIsEditing(true)}>
+                                        EDITAR
                                     </button>
-                                )}
-                            </>
+                                    
+                                    {user && user.tipo === 'MAXIMO' && (
+                                        <button className={styles.deleteBtn} onClick={handleDeactivateClick}>
+                                            <FaTrash /> DESATIVAR
+                                        </button>
+                                    )}
+                                </>
+                            )
                         )}
                     </div>
                 </div>

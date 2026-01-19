@@ -81,7 +81,7 @@ const FuncionarioInativo = () => {
         isFetchingNextPage,
         isLoading, 
     } = useInfiniteQuery({
-        queryKey: ['funcionarios', buscaDebounced, filialSelecionada, campoBusca], 
+        queryKey: ['funcionarios', 'INATIVOS', buscaDebounced, filialSelecionada, campoBusca], 
         queryFn: fetchFuncionarios,
         getNextPageParam: (lastPage) => {
             if (!lastPage.next) return undefined;
@@ -99,7 +99,7 @@ const FuncionarioInativo = () => {
     };
 
     const handleUpdate = () => {
-        queryClient.invalidateQueries(['funcionarios']);
+        queryClient.invalidateQueries(['funcionarios', 'INATIVOS']);
     };
 
     return (

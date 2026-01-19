@@ -1,0 +1,113 @@
+.container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 4rem;
+    overflow-y: auto; /* Permite scroll se a tela for pequena */
+}
+
+.loading {
+    color: white;
+    font-size: 2rem;
+    margin-top: 5rem;
+    align-self: center;
+}
+
+/* === GRÁFICOS === */
+.chartsRow {
+    display: flex;
+    justify-content: center;
+    gap: 15rem; /* Espaço grande entre os gráficos */
+    margin-bottom: 5rem;
+    flex-wrap: wrap;
+    margin-top: 7rem;
+}
+
+.chartWrapper {
+    position: relative;
+    width: 40rem;
+    height: 40rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    
+    /* Gira 90 graus conforme seu CSS original para alinhar o corte */
+    transform: rotate(90deg); 
+}
+
+/* Texto no centro da rosca (Gira -90 para ficar reto) */
+.chartCenterText {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%) rotate(-90deg);
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.bigNumber {
+    font-family: 'Inter', sans-serif;
+    font-weight: 900;
+    font-size: 8rem;
+    color: white;
+    line-height: 1;
+}
+
+.smallText {
+    font-family: 'Inter', sans-serif;
+    font-size: 2rem;
+    color: #ccc;
+}
+
+/* === LEGENDAS (ESTATÍSTICAS) === */
+.statsRow {
+    display: flex;
+    justify-content: center;
+    gap: 27rem; /* Espaço entre as colunas de texto */
+    width: 100%;
+    max-width: 1200px;
+    padding-bottom: 5rem;
+    margin-top: 2rem;
+    flex-wrap: wrap;
+}
+
+.statsColumn {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.statItem {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.bar {
+    width: 0.8rem;
+    height: 4rem; /* Altura da barra lateral */
+    border-radius: 1rem;
+}
+
+.greenBar { background-color: #0BDD17; }
+.redBar { background-color: #DD0B0B; }
+.orangeBar { background-color: #FFA500; }
+
+.percent, .count {
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+    font-size: 3.5rem;
+    color: white;
+    min-width: 8rem;
+    text-align: right;
+}
+
+.desc {
+    font-family: 'Inter', sans-serif;
+    font-size: 1.6rem;
+    color: #ddd;
+    line-height: 1.2;
+}

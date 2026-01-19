@@ -2,7 +2,7 @@ import React, { useState, useContext } from "react";
 // Reutilizando CSS de filial (Layout Coluna Única)
 import styles from "../Filial/modal_filial.module.css"; 
 import api from "../../../services/api";
-import { FaTimes, FaCheck, FaTrash, FaEdit } from "react-icons/fa";
+import { FaTimes, FaCheck, FaTrash, FaEdit, FaUndo } from "react-icons/fa";
 import { AuthContext } from "../../../context/AuthContext";
 
 import EditadoComponent from "../../Avisos/Editado/Editado";
@@ -10,7 +10,8 @@ import FalhaEdicaoComponent from "../../Avisos/FalhaEdicao/FalhaEdicao";
 import ConfirmarRemocaoComponent from "../../Avisos/ConfirmarRemocao/ConfirmarRemocao";
 import RemovidoComponent from "../../Avisos/Removido/Removido";
 import FalhaRemocaoComponent from "../../Avisos/FalhaRemocao/FalhaRemocao";
-import AvisoEdicaoBloqueada from "../../Avisos/BloqueioEdicao/BloqueioEdicao";
+import ReativadoComponent from "../../Avisos/Reativado/Reativado";
+import DesejaReativarComponent from "../../Avisos/DesejaReativar/DesejaReativar";
 
 import ConfirmarDesativacaoDepositoComponent from "../../Avisos/ConfirmarDesativacaoDeposito/ConfirmarDesativacaoDeposito";
 import BloqueioDesativarDepositoComponent from "../../Avisos/BloqueioDesativarDeposito/BloqueioDesativarDeposito";
@@ -28,6 +29,10 @@ const ModalDeposito = ({ deposito, onClose, onUpdate }) => {
     const [showConfirmacao, setShowConfirmacao] = useState(false);
     const [showBloqueio, setShowBloqueio] = useState(false);
     const [listaBloqueio, setListaBloqueio] = useState([]);
+
+    // Reativação
+    const [showReativarConfirm, setShowReativarConfirm] = useState(false);
+    const [showReativado, setShowReativado] = useState(false);
 
     // Apenas o nome é editável
     const [editData, setEditData] = useState({
@@ -87,6 +92,28 @@ const ModalDeposito = ({ deposito, onClose, onUpdate }) => {
         }
     };
 
+    // --- REATIVAR ---
+    const handleReativarClick = () => {
+        setShowReativarConfirm(true);
+    };
+
+    const handleConfirmReativar = async () => {
+        setShowReativarConfirm(false);
+        try {
+            await api.patch(`/api/depositos/${deposito.id}/`, { ativo: true });
+            setShowReativado(true);
+            setTimeout(() => {
+                setShowReativado(false);
+                if (onUpdate) onUpdate();
+                onClose();
+            }, 2500);
+        } catch (error) {
+            console.error("Erro ao reativar:", error);
+            setShowFalhaRemocao(true);
+            setTimeout(() => setShowFalhaRemocao(false), 3000);
+        }
+    };
+
     return (
         <div className={styles.overlay} onClick={onClose}>
             {/* Proteção contra fechamento acidental */}
@@ -104,6 +131,12 @@ const ModalDeposito = ({ deposito, onClose, onUpdate }) => {
                             onCancel={() => setShowConfirmacao(false)} 
                         />
                     )}
+                    {showReativarConfirm && (
+                        <DesejaReativarComponent 
+                            onConfirm={handleConfirmReativar} 
+                            onCancel={() => setShowReativarConfirm(false)} 
+                        />
+                    )}
                 </div>
             </div>
 
@@ -111,6 +144,7 @@ const ModalDeposito = ({ deposito, onClose, onUpdate }) => {
             {showFalhaEdicao && <FalhaEdicaoComponent />}
             {showRemovido && <RemovidoComponent />}
             {showFalhaRemocao && <FalhaRemocaoComponent />}
+            {showReativado && <ReativadoComponent />}
 
             <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
                 <button className={styles.closeBtn} onClick={onClose}>
@@ -119,7 +153,7 @@ const ModalDeposito = ({ deposito, onClose, onUpdate }) => {
 
                 <div className={styles.content}>
                     <h2 className={styles.title}>
-                        {isEditing ? "Editar Depósito" : "Detalhes do Depósito"}
+                        {!deposito.ativo ? "Depósito Inativo" : (isEditing ? "Editar Depósito" : "Detalhes do Depósito")}
                     </h2>
 
                     <div className={styles.infoGroup}>
@@ -138,22 +172,30 @@ const ModalDeposito = ({ deposito, onClose, onUpdate }) => {
                     </div>
 
                     <div className={styles.actions}>
-                        {isEditing ? (
-                            <button className={styles.saveBtn} onClick={handleSave}>
-                                <FaCheck /> SALVAR
+                        {!deposito.ativo ? (
+                            // SE INATIVO: Apenas botão REATIVAR
+                            <button className={styles.saveBtn} onClick={handleReativarClick} style={{backgroundColor: '#007bff'}}>
+                                <FaUndo /> REATIVAR
                             </button>
                         ) : (
-                            <>
-                                <button className={styles.editBtn} onClick={() => setIsEditing(true)}>
-                                    EDITAR
+                            // SE ATIVO:
+                            isEditing ? (
+                                <button className={styles.saveBtn} onClick={handleSave}>
+                                    <FaCheck /> SALVAR
                                 </button>
-                                
-                                {user && user.tipo === 'MAXIMO' && (
-                                    <button className={styles.deleteBtn} onClick={handleDeactivateClick}>
-                                        <FaTrash /> DESATIVAR
+                            ) : (
+                                <>
+                                    <button className={styles.editBtn} onClick={() => setIsEditing(true)}>
+                                        EDITAR
                                     </button>
-                                )}
-                            </>
+                                    
+                                    {user && user.tipo === 'MAXIMO' && (
+                                        <button className={styles.deleteBtn} onClick={handleDeactivateClick}>
+                                            <FaTrash /> DESATIVAR
+                                        </button>
+                                    )}
+                                </>
+                            )
                         )}
                     </div>
                 </div>

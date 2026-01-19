@@ -60,6 +60,7 @@ const Emprestimo = () => {
             ativo: 'true' // <--- FILTRA SOMENTE ATIVOS
         };
 
+
         if (filialSelecionada && filialSelecionada.value) {
             params.filial = filialSelecionada.value;
         }
@@ -84,7 +85,7 @@ const Emprestimo = () => {
         isFetchingNextPage,
         isLoading, 
     } = useInfiniteQuery({
-        queryKey: ['emprestimos', buscaDebounced, filialSelecionada, campoBusca], 
+        queryKey: ['emprestimos', 'ATIVOS', buscaDebounced, filialSelecionada, campoBusca], 
         queryFn: fetchEmprestimos,
         getNextPageParam: (lastPage) => {
             if (!lastPage.next) return undefined;
@@ -102,7 +103,7 @@ const Emprestimo = () => {
     };
 
     const handleUpdate = () => {
-        queryClient.invalidateQueries(['emprestimos']);
+        queryClient.invalidateQueries(['emprestimos', 'ATIVOS']);
     };
 
     return (

@@ -93,7 +93,7 @@ const Manutencao = () => {
         isFetchingNextPage,
         isLoading, 
     } = useInfiniteQuery({
-        queryKey: ['manutencoes', buscaDebounced, filialSelecionada, campoBusca], 
+        queryKey: ['manutencoes', 'ATIVOS', buscaDebounced, filialSelecionada, campoBusca], 
         queryFn: fetchManutencoes,
         getNextPageParam: (lastPage) => {
             if (!lastPage.next) return undefined;
@@ -111,7 +111,7 @@ const Manutencao = () => {
     };
 
     const handleUpdate = () => {
-        queryClient.invalidateQueries(['manutencoes']);
+        queryClient.invalidateQueries(['manutencoes', 'ATIVOS']);
     };
 
     return (

@@ -1,16 +1,18 @@
 import React, { useState, useEffect, useContext } from "react";
-// Reutiliza CSS de FILIAL (Coluna Única) pois usuário não tem foto
+// Reutiliza CSS de FILIAL (Layout Coluna Única sem imagem)
 import styles from "../Filial/modal_filial.module.css"; 
 import api from "../../../services/api";
-import { FaTimes, FaCheck, FaTrash, FaEdit } from "react-icons/fa";
+import { FaTimes, FaCheck, FaTrash, FaEdit, FaUndo } from "react-icons/fa";
 import { AuthContext } from "../../../context/AuthContext";
 
+// --- IMPORTS EXATOS ---
 import EditadoComponent from "../../Avisos/Editado/Editado";
 import FalhaEdicaoComponent from "../../Avisos/FalhaEdicao/FalhaEdicao";
 import ConfirmarRemocaoComponent from "../../Avisos/ConfirmarRemocao/ConfirmarRemocao";
 import RemovidoComponent from "../../Avisos/Removido/Removido";
 import FalhaRemocaoComponent from "../../Avisos/FalhaRemocao/FalhaRemocao";
-import AvisoEdicaoBloqueada from "../../Avisos/BloqueioEdicao/BloqueioEdicao";
+import ReativadoComponent from "../../Avisos/Reativado/Reativado";
+import DesejaReativarComponent from "../../Avisos/DesejaReativar/DesejaReativar";
 
 import Select from 'react-select';
 import { customSelectStyles } from '../../CustomSelect/selectStyles';
@@ -29,6 +31,10 @@ const ModalUsuario = ({ usuario, onClose, onUpdate }) => {
     const [showRemovido, setShowRemovido] = useState(false);
     const [showFalhaRemocao, setShowFalhaRemocao] = useState(false);
     const [msgErro, setMsgErro] = useState('');
+
+    // Reativação
+    const [showReativarConfirm, setShowReativarConfirm] = useState(false);
+    const [showReativado, setShowReativado] = useState(false);
 
     const [editData, setEditData] = useState({
         nome: usuario.nome,
@@ -135,14 +141,38 @@ const ModalUsuario = ({ usuario, onClose, onUpdate }) => {
         }
     };
 
+    // --- REATIVAR ---
+    const handleReativarClick = () => {
+        setShowReativarConfirm(true);
+    };
+
+    const handleConfirmReativar = async () => {
+        setShowReativarConfirm(false);
+        try {
+            await api.patch(`/api/usuarios/${usuario.id}/`, { ativo: true });
+            setShowReativado(true);
+            setTimeout(() => {
+                setShowReativado(false);
+                if (onUpdate) onUpdate();
+                onClose();
+            }, 2500);
+        } catch (error) {
+            console.error("Erro ao reativar:", error);
+            setShowFalhaRemocao(true);
+            setTimeout(() => setShowFalhaRemocao(false), 3000);
+        }
+    };
+
     return (
         <div className={styles.overlay} onClick={onClose}>
             {showEditado && <EditadoComponent />}
             {showFalhaEdicao && <FalhaEdicaoComponent />}
             {showRemovido && <RemovidoComponent />}
             {showFalhaRemocao && <FalhaRemocaoComponent />}
+            {showReativado && <ReativadoComponent />}
 
             <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+                
                 {showConfirmacao && (
                     <ConfirmarRemocaoComponent 
                         onConfirm={handleConfirmDesativar} 
@@ -150,12 +180,22 @@ const ModalUsuario = ({ usuario, onClose, onUpdate }) => {
                     />
                 )}
 
+                {showReativarConfirm && (
+                    <DesejaReativarComponent 
+                        onConfirm={handleConfirmReativar} 
+                        onCancel={() => setShowReativarConfirm(false)} 
+                    />
+                )}
+
                 <button className={styles.closeBtn} onClick={onClose}>
                     <FaTimes />
                 </button>
 
+                {/* CONTEÚDO (Sem Imagem) */}
                 <div className={styles.content}>
-                    <h2 className={styles.title}>{isEditing ? "Editar Usuário" : "Detalhes"}</h2>
+                    <h2 className={styles.title}>
+                        {!usuario.ativo ? "Usuário Inativo" : (isEditing ? "Editar Usuário" : "Detalhes")}
+                    </h2>
 
                     <div className={styles.infoGroup}>
                         <label>Nome</label>
@@ -197,7 +237,7 @@ const ModalUsuario = ({ usuario, onClose, onUpdate }) => {
                     {/* FILIAIS (Só se for Coordenador) */}
                     {editData.tipo === 'COORDENADOR' && (
                         <div className={styles.infoGroup}>
-                            <label>Filiais</label>
+                            <label>Filiais Vinculadas</label>
                             {isEditing ? (
                                 <Select 
                                     isMulti 
@@ -218,8 +258,8 @@ const ModalUsuario = ({ usuario, onClose, onUpdate }) => {
                         </div>
                     )}
 
-                    {/* SENHA (Só na edição) */}
-                    {isEditing && (
+                    {/* SENHA (Só na edição e se estiver ativo) */}
+                    {isEditing && usuario.ativo && (
                         <div className={styles.infoGroup} style={{marginTop: '1rem', borderTop: '1px solid #444', paddingTop: '1rem'}}>
                             <label style={{color: '#f46524'}}>Nova Senha (Opcional)</label>
                             <input 
@@ -234,16 +274,22 @@ const ModalUsuario = ({ usuario, onClose, onUpdate }) => {
                     )}
 
                     <div className={styles.actions}>
-                        {isEditing ? (
-                            <button className={styles.saveBtn} onClick={handleSave}><FaCheck /> SALVAR</button>
+                        {!usuario.ativo ? (
+                            <button className={styles.saveBtn} onClick={handleReativarClick} style={{backgroundColor: '#007bff'}}>
+                                <FaUndo /> REATIVAR
+                            </button>
                         ) : (
-                            <>
-                                <button className={styles.editBtn} onClick={() => setIsEditing(true)}><FaEdit /> EDITAR</button>
-                                {/* Botão desativar apenas para MAXIMO ou se for ADMIN gerenciando COORDENADOR */}
-                                {(user.tipo === 'MAXIMO' || user.tipo === 'ADMINISTRADOR') && (
-                                    <button className={styles.deleteBtn} onClick={() => setShowConfirmacao(true)}><FaTrash /> DESATIVAR</button>
-                                )}
-                            </>
+                            isEditing ? (
+                                <button className={styles.saveBtn} onClick={handleSave}><FaCheck /> SALVAR</button>
+                            ) : (
+                                <>
+                                    <button className={styles.editBtn} onClick={() => setIsEditing(true)}><FaEdit /> EDITAR</button>
+                                    
+                                    {(user.tipo === 'MAXIMO' || user.tipo === 'ADMINISTRADOR') && (
+                                        <button className={styles.deleteBtn} onClick={() => setShowConfirmacao(true)}><FaTrash /> DESATIVAR</button>
+                                    )}
+                                </>
+                            )
                         )}
                     </div>
                 </div>

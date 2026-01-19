@@ -172,6 +172,14 @@
     flex-wrap: wrap;
 }
 
+.actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+    flex-wrap: wrap; /* Garante que quebre linha se a tela for muito pequena */
+}
+
+/* TODOS OS BOTÕES (INCLUINDO RELATÓRIO) DIVIDEM ESPAÇO IGUAL */
 .editBtn, .deleteBtn, .saveBtn, .reportBtn {
     flex: 1;
     padding: 1rem;

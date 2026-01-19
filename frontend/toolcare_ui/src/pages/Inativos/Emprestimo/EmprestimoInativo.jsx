@@ -84,7 +84,7 @@ const EmprestimoInativo = () => {
         isFetchingNextPage,
         isLoading, 
     } = useInfiniteQuery({
-        queryKey: ['emprestimos', buscaDebounced, filialSelecionada, campoBusca], 
+        queryKey: ['emprestimos', 'INATIVOS', buscaDebounced, filialSelecionada, campoBusca], 
         queryFn: fetchEmprestimos,
         getNextPageParam: (lastPage) => {
             if (!lastPage.next) return undefined;
@@ -102,7 +102,7 @@ const EmprestimoInativo = () => {
     };
 
     const handleUpdate = () => {
-        queryClient.invalidateQueries(['emprestimos']);
+        queryClient.invalidateQueries(['emprestimos', 'INATIVOS']);
     };
 
     return (

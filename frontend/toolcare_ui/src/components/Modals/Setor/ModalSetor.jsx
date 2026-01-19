@@ -1,27 +1,34 @@
 import React, { useState, useContext } from "react";
-// Reutilizando CSS de filial (Layout Coluna Única)
+// Reutilizando CSS de filial
 import styles from "../Filial/modal_filial.module.css"; 
 import api from "../../../services/api";
-import { FaTimes, FaCheck, FaTrash, FaEdit } from "react-icons/fa";
+import { FaTimes, FaCheck, FaTrash, FaEdit, FaUndo } from "react-icons/fa";
 import { AuthContext } from "../../../context/AuthContext";
 
+// --- IMPORTS EXATOS QUE VOCÊ PASSOU ---
 import EditadoComponent from "../../Avisos/Editado/Editado";
 import FalhaEdicaoComponent from "../../Avisos/FalhaEdicao/FalhaEdicao";
 import ConfirmarRemocaoComponent from "../../Avisos/ConfirmarRemocao/ConfirmarRemocao";
 import RemovidoComponent from "../../Avisos/Removido/Removido";
 import FalhaRemocaoComponent from "../../Avisos/FalhaRemocao/FalhaRemocao";
-import AvisoEdicaoBloqueada from "../../Avisos/BloqueioEdicao/BloqueioEdicao";
+import ReativadoComponent from "../../Avisos/Reativado/Reativado";
+import DesejaReativarComponent from "../../Avisos/DesejaReativar/DesejaReativar";
 
 const ModalSetor = ({ setor, onClose, onUpdate }) => {
     const { user } = useContext(AuthContext);
     const [isEditing, setIsEditing] = useState(false);
     
-    // Avisos
+    // Estados de Aviso
     const [showEditado, setShowEditado] = useState(false);
     const [showFalhaEdicao, setShowFalhaEdicao] = useState(false);
-    const [showConfirmacao, setShowConfirmacao] = useState(false);
+    
+    const [showConfirmacao, setShowConfirmacao] = useState(false); // Para Desativar
     const [showRemovido, setShowRemovido] = useState(false);
     const [showFalhaRemocao, setShowFalhaRemocao] = useState(false);
+
+    // Estados de Reativação
+    const [showReativarConfirm, setShowReativarConfirm] = useState(false);
+    const [showReativado, setShowReativado] = useState(false);
 
     const [editData, setEditData] = useState({
         nome_setor: setor.nome_setor,
@@ -52,7 +59,6 @@ const ModalSetor = ({ setor, onClose, onUpdate }) => {
     const handleConfirmDesativar = async () => {
         setShowConfirmacao(false);
         try {
-            // Soft Delete padrão
             await api.patch(`/api/setores/${setor.id}/`, { ativo: false });
             setShowRemovido(true);
             setTimeout(() => {
@@ -67,18 +73,53 @@ const ModalSetor = ({ setor, onClose, onUpdate }) => {
         }
     };
 
+    // --- LÓGICA DE REATIVAÇÃO ---
+    const handleReativarClick = () => {
+        setShowReativarConfirm(true);
+    };
+
+    const handleConfirmReativar = async () => {
+        setShowReativarConfirm(false);
+        try {
+            await api.patch(`/api/setores/${setor.id}/`, { ativo: true });
+            
+            setShowReativado(true);
+            setTimeout(() => {
+                setShowReativado(false);
+                if (onUpdate) onUpdate();
+                onClose();
+            }, 2500);
+        } catch (error) {
+            console.error("Erro ao reativar:", error);
+            setShowFalhaRemocao(true); // Reusa aviso de erro genérico
+            setTimeout(() => setShowFalhaRemocao(false), 3000);
+        }
+    };
+
     return (
         <div className={styles.overlay} onClick={onClose}>
+            {/* Avisos Toast */}
             {showEditado && <EditadoComponent />}
             {showFalhaEdicao && <FalhaEdicaoComponent />}
             {showRemovido && <RemovidoComponent />}
             {showFalhaRemocao && <FalhaRemocaoComponent />}
+            {showReativado && <ReativadoComponent />}
 
             <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+                
+                {/* CONFIRMAÇÃO DESATIVAR */}
                 {showConfirmacao && (
                     <ConfirmarRemocaoComponent 
                         onConfirm={handleConfirmDesativar} 
                         onCancel={() => setShowConfirmacao(false)} 
+                    />
+                )}
+
+                {/* CONFIRMAÇÃO REATIVAR */}
+                {showReativarConfirm && (
+                    <DesejaReativarComponent 
+                        onConfirm={handleConfirmReativar} 
+                        onCancel={() => setShowReativarConfirm(false)} 
                     />
                 )}
 
@@ -88,7 +129,7 @@ const ModalSetor = ({ setor, onClose, onUpdate }) => {
 
                 <div className={styles.content}>
                     <h2 className={styles.title}>
-                        {isEditing ? "Editar Setor" : "Detalhes do Setor"}
+                        {!setor.ativo ? "Setor Inativo" : (isEditing ? "Editar Setor" : "Detalhes do Setor")}
                     </h2>
 
                     {/* NOME SETOR */}
@@ -101,7 +142,7 @@ const ModalSetor = ({ setor, onClose, onUpdate }) => {
                         )}
                     </div>
 
-                    {/* DESCRIÇÃO SETOR - Alterado para Input */}
+                    {/* DESCRIÇÃO SETOR */}
                     <div className={styles.infoGroup}>
                         <label>Descrição</label>
                         {isEditing ? (
@@ -118,24 +159,33 @@ const ModalSetor = ({ setor, onClose, onUpdate }) => {
                     </div>
 
                     <div className={styles.actions}>
-                        {isEditing ? (
-                            <button className={styles.saveBtn} onClick={handleSave}>
-                                <FaCheck /> SALVAR
+                        {/* LÓGICA DE BOTÕES CONDICIONAIS */}
+                        
+                        {!setor.ativo ? (
+                            // SE INATIVO: Apenas botão REATIVAR
+                            <button className={styles.saveBtn} onClick={handleReativarClick} style={{backgroundColor: '#007bff'}}>
+                                <FaUndo /> REATIVAR
                             </button>
                         ) : (
-                            <>
-                                {/* Apenas ADMIN ou MAXIMO editam setores */}
-                                {(user?.tipo === 'ADMINISTRADOR' || user?.tipo === 'MAXIMO') && (
-                                    <>
-                                        <button className={styles.editBtn} onClick={() => setIsEditing(true)}>
-                                            EDITAR
-                                        </button>
-                                        <button className={styles.deleteBtn} onClick={() => setShowConfirmacao(true)}>
-                                            <FaTrash /> DESATIVAR
-                                        </button>
-                                    </>
-                                )}
-                            </>
+                            // SE ATIVO: Lógica normal
+                            isEditing ? (
+                                <button className={styles.saveBtn} onClick={handleSave}>
+                                    <FaCheck /> SALVAR
+                                </button>
+                            ) : (
+                                <>
+                                    {(user?.tipo === 'ADMINISTRADOR' || user?.tipo === 'MAXIMO') && (
+                                        <>
+                                            <button className={styles.editBtn} onClick={() => setIsEditing(true)}>
+                                                EDITAR
+                                            </button>
+                                            <button className={styles.deleteBtn} onClick={() => setShowConfirmacao(true)}>
+                                                <FaTrash /> DESATIVAR
+                                            </button>
+                                        </>
+                                    )}
+                                </>
+                            )
                         )}
                     </div>
                 </div>

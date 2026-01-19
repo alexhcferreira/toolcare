@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useContext } from "react";
-// Usando o CSS de Ferramenta para manter o padrão visual
+// Usando o CSS de Ferramenta para manter o padrão visual (Sem imagem lateral grande)
 import styles from "../Ferramenta/modal_ferramenta.module.css"; 
 import api from "../../../services/api";
-import { FaTimes, FaEdit, FaTrash, FaCheck, FaFileAlt, FaCamera } from "react-icons/fa";
+import { FaTimes, FaEdit, FaTrash, FaCheck, FaFileAlt, FaCamera, FaUndo } from "react-icons/fa";
 import { AuthContext } from "../../../context/AuthContext";
 
 // Imports dos Componentes de Aviso
@@ -12,6 +12,8 @@ import ConfirmarRemocaoComponent from "../../Avisos/ConfirmarRemocao/ConfirmarRe
 import RemovidoComponent from "../../Avisos/Removido/Removido";
 import FalhaRemocaoComponent from "../../Avisos/FalhaRemocao/FalhaRemocao";
 import BloqueioFuncionarioEmprestimoAtivoComponent from "../../Avisos/BloqueioFuncionarioEmprestimoAtivo/BloqueioFuncionarioEmprestimoAtivo";
+import ReativadoComponent from "../../Avisos/Reativado/Reativado";
+import DesejaReativarComponent from "../../Avisos/DesejaReativar/DesejaReativar";
 
 import Select from 'react-select';
 import { customSelectStyles } from '../../CustomSelect/selectStyles';
@@ -53,6 +55,10 @@ const ModalFuncionario = ({ funcionario, onClose, onUpdate }) => {
     const [showRemovido, setShowRemovido] = useState(false);
     const [showFalhaRemocao, setShowFalhaRemocao] = useState(false);
     const [showBloqueio, setShowBloqueio] = useState(false);
+    
+    // Reativação
+    const [showReativarConfirm, setShowReativarConfirm] = useState(false);
+    const [showReativado, setShowReativado] = useState(false);
 
     // Erros
     const [fieldErrors, setFieldErrors] = useState({
@@ -72,8 +78,6 @@ const ModalFuncionario = ({ funcionario, onClose, onUpdate }) => {
     });
 
     const [fileName, setFileName] = useState('');
-    
-    // Preview da imagem
     const imagePreview = editData.foto ? URL.createObjectURL(editData.foto) : (funcionario.foto || defaultImg);
 
     // Carregar opções ao editar
@@ -87,7 +91,6 @@ const ModalFuncionario = ({ funcionario, onClose, onUpdate }) => {
                         api.get('/api/cargos/')
                     ]);
                     
-                    // Tratamento da paginação (results ou data)
                     const getList = (res) => res.data.results || res.data;
 
                     setFiliaisOptions(getList(filiaisRes).map(f => ({ value: f.id, label: `${f.nome} - ${f.cidade}` })));
@@ -140,20 +143,19 @@ const ModalFuncionario = ({ funcionario, onClose, onUpdate }) => {
     };
 
     // --- LÓGICA DE BLOQUEIO POR EMPRÉSTIMO ATIVO ---
-    
     const verificarEmprestimosAtivos = async () => {
         try {
-            // Filtra empréstimos ativos deste funcionário
             const response = await api.get(`/api/emprestimos/?funcionario=${funcionario.id}&ativo=true`);
             const lista = response.data.results || response.data;
             return lista.length > 0;
         } catch (error) {
             console.error("Erro ao verificar empréstimos:", error);
-            return true; // Bloqueia por segurança em caso de erro
+            return true; 
         }
     };
 
     const handleEditClick = async () => {
+        if (!funcionario.ativo) return; // Segurança extra
         const temEmprestimos = await verificarEmprestimosAtivos();
         if (temEmprestimos) {
             setShowBloqueio(true);
@@ -252,6 +254,31 @@ const ModalFuncionario = ({ funcionario, onClose, onUpdate }) => {
         }
     };
 
+    // --- REATIVAR ---
+    const handleReativarClick = () => {
+        setShowReativarConfirm(true);
+    };
+
+    const handleConfirmReativar = async () => {
+        setShowReativarConfirm(false);
+        try {
+            await api.patch(`/api/funcionarios/${funcionario.id}/reativar/`);
+            setShowReativado(true);
+            setTimeout(() => {
+                setShowReativado(false);
+                if (onUpdate) onUpdate();
+                onClose();
+            }, 2500);
+        } catch (error) {
+            console.error("Erro ao reativar:", error);
+            if (error.response?.data?.error) alert(error.response.data.error);
+            setShowFalhaRemocao(true); // Reusa aviso de falha genérico
+            setTimeout(() => setShowFalhaRemocao(false), 3000);
+        }
+    };
+
+    const handleGerarRelatorio = () => { alert("Funcionalidade de Relatório em desenvolvimento."); };
+
     return (
         <div className={styles.overlay} onClick={onClose}>
             {showEditado && <EditadoComponent />}
@@ -259,6 +286,7 @@ const ModalFuncionario = ({ funcionario, onClose, onUpdate }) => {
             {showRemovido && <RemovidoComponent />}
             {showFalhaRemocao && <FalhaRemocaoComponent />}
             {showBloqueio && <BloqueioFuncionarioEmprestimoAtivoComponent />}
+            {showReativado && <ReativadoComponent />}
 
             <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
                 {showConfirmacao && (
@@ -267,17 +295,25 @@ const ModalFuncionario = ({ funcionario, onClose, onUpdate }) => {
                         onCancel={() => setShowConfirmacao(false)} 
                     />
                 )}
+                
+                {showReativarConfirm && (
+                    <DesejaReativarComponent 
+                        onConfirm={handleConfirmReativar} 
+                        onCancel={() => setShowReativarConfirm(false)} 
+                    />
+                )}
 
                 <button className={styles.closeBtn} onClick={onClose}>
                     <FaTimes />
                 </button>
 
-                <div className={styles.content}>
-                    <h2 className={styles.title}>{isEditing ? "Editar Funcionário" : "Detalhes"}</h2>
-                    
-                    {/* Imagem pequena centralizada no topo do form, se quiser, ou mantenha sem */}
-                    {/* Aqui não coloquei a imagem grande na esquerda, conforme seu pedido para tirar */}
 
+                <div className={styles.content}>
+                    <h2 className={styles.title}>
+                        {!funcionario.ativo ? "Funcionário Inativo" : (isEditing ? "Editar Funcionário" : "Detalhes")}
+                    </h2>
+
+                    {/* ... (Campos Nome, CPF, Matricula, Setor, Cargo, Filiais mantidos) ... */}
                     <div className={styles.infoGroup}>
                         <label>Nome</label>
                         {isEditing ? (
@@ -291,13 +327,7 @@ const ModalFuncionario = ({ funcionario, onClose, onUpdate }) => {
                         <label>CPF</label>
                         {isEditing ? (
                             <>
-                                <input 
-                                    className={`${styles.input} ${fieldErrors.cpf ? styles.inputError : ''}`}
-                                    name="cpf" 
-                                    value={editData.cpf} 
-                                    onChange={handleChange} 
-                                    maxLength={14}
-                                />
+                                <input className={`${styles.input} ${fieldErrors.cpf ? styles.inputError : ''}`} name="cpf" value={editData.cpf} onChange={handleChange} maxLength={14} />
                                 {fieldErrors.cpf && <span className={styles.errorMsg}>{fieldErrors.cpf}</span>}
                             </>
                         ) : (
@@ -309,12 +339,7 @@ const ModalFuncionario = ({ funcionario, onClose, onUpdate }) => {
                         <label>Matrícula</label>
                         {isEditing ? (
                             <>
-                                <input 
-                                    className={`${styles.input} ${fieldErrors.matricula ? styles.inputError : ''}`}
-                                    name="matricula" 
-                                    value={editData.matricula} 
-                                    onChange={handleChange} 
-                                />
+                                <input className={`${styles.input} ${fieldErrors.matricula ? styles.inputError : ''}`} name="matricula" value={editData.matricula} onChange={handleChange} />
                                 {fieldErrors.matricula && <span className={styles.errorMsg}>{fieldErrors.matricula}</span>}
                             </>
                         ) : (
@@ -344,15 +369,7 @@ const ModalFuncionario = ({ funcionario, onClose, onUpdate }) => {
                         <label>Filiais</label>
                         {isEditing ? (
                             <>
-                                <Select 
-                                    isMulti 
-                                    styles={customSelectStyles} 
-                                    options={filiaisOptions} 
-                                    value={editData.filiais} 
-                                    onChange={handleFiliaisChange} 
-                                    placeholder="Selecione as filiais..." 
-                                    menuPosition="fixed" 
-                                />
+                                <Select isMulti styles={customSelectStyles} options={filiaisOptions} value={editData.filiais} onChange={handleFiliaisChange} placeholder="Selecione as filiais..." menuPosition="fixed" />
                                 {fieldErrors.filiais && <span className={styles.errorMsg}>{fieldErrors.filiais}</span>}
                             </>
                         ) : (
@@ -379,14 +396,27 @@ const ModalFuncionario = ({ funcionario, onClose, onUpdate }) => {
                     )}
 
                     <div className={styles.actions}>
-                        {isEditing ? (
-                            <button className={styles.saveBtn} onClick={handleSave}><FaCheck /> SALVAR</button>
-                        ) : (
+                        {!funcionario.ativo ? (
+                            // SE INATIVO: Reativar + Relatório
                             <>
-                                <button className={styles.editBtn} onClick={handleEditClick}><FaEdit /> EDITAR</button>
-                                <button className={styles.deleteBtn} onClick={handleDeactivateClick}><FaTrash /> DESATIVAR</button>
-                                <button className={styles.reportBtn} onClick={() => alert("Em breve")}><FaFileAlt /> RELATÓRIO</button>
+                                <button className={styles.saveBtn} onClick={handleReativarClick} style={{backgroundColor: '#007bff'}}>
+                                    <FaUndo /> REATIVAR
+                                </button>
+                                <button className={styles.reportBtn} onClick={handleGerarRelatorio}>
+                                    <FaFileAlt /> RELATÓRIO
+                                </button>
                             </>
+                        ) : (
+                            // SE ATIVO:
+                            isEditing ? (
+                                <button className={styles.saveBtn} onClick={handleSave}><FaCheck /> SALVAR</button>
+                            ) : (
+                                <>
+                                    <button className={styles.editBtn} onClick={handleEditClick}><FaEdit /> EDITAR</button>
+                                    <button className={styles.deleteBtn} onClick={handleDeactivateClick}><FaTrash /> DESATIVAR</button>
+                                    <button className={styles.reportBtn} onClick={handleGerarRelatorio}><FaFileAlt /> RELATÓRIO</button>
+                                </>
+                            )
                         )}
                     </div>
                 </div>

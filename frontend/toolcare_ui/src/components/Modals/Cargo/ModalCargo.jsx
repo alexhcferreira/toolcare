@@ -1,8 +1,7 @@
 import React, { useState, useContext } from "react";
-// Reutilizando CSS de filial (Layout Coluna Única)
 import styles from "../Filial/modal_filial.module.css"; 
 import api from "../../../services/api";
-import { FaTimes, FaCheck, FaTrash, FaEdit } from "react-icons/fa";
+import { FaTimes, FaCheck, FaTrash, FaEdit, FaUndo } from "react-icons/fa"; // Ícone de Undo para reativar
 import { AuthContext } from "../../../context/AuthContext";
 
 import EditadoComponent from "../../Avisos/Editado/Editado";
@@ -10,7 +9,8 @@ import FalhaEdicaoComponent from "../../Avisos/FalhaEdicao/FalhaEdicao";
 import ConfirmarRemocaoComponent from "../../Avisos/ConfirmarRemocao/ConfirmarRemocao";
 import RemovidoComponent from "../../Avisos/Removido/Removido";
 import FalhaRemocaoComponent from "../../Avisos/FalhaRemocao/FalhaRemocao";
-import AvisoEdicaoBloqueada from "../../Avisos/BloqueioEdicao/BloqueioEdicao";
+import ReativadoComponent from "../../Avisos/Reativado/Reativado";
+import DesejaReativarComponent from "../../Avisos/DesejaReativar/DesejaReativar";
 
 const ModalCargo = ({ cargo, onClose, onUpdate }) => {
     const { user } = useContext(AuthContext);
@@ -19,9 +19,14 @@ const ModalCargo = ({ cargo, onClose, onUpdate }) => {
     // Avisos
     const [showEditado, setShowEditado] = useState(false);
     const [showFalhaEdicao, setShowFalhaEdicao] = useState(false);
+    
     const [showConfirmacao, setShowConfirmacao] = useState(false);
     const [showRemovido, setShowRemovido] = useState(false);
     const [showFalhaRemocao, setShowFalhaRemocao] = useState(false);
+
+    // Avisos de Reativação
+    const [showReativarConfirm, setShowReativarConfirm] = useState(false);
+    const [showReativado, setShowReativado] = useState(false); // Sucesso ao reativar
 
     const [editData, setEditData] = useState({
         nome_cargo: cargo.nome_cargo,
@@ -52,7 +57,6 @@ const ModalCargo = ({ cargo, onClose, onUpdate }) => {
     const handleConfirmDesativar = async () => {
         setShowConfirmacao(false);
         try {
-            // Soft Delete padrão
             await api.patch(`/api/cargos/${cargo.id}/`, { ativo: false });
             setShowRemovido(true);
             setTimeout(() => {
@@ -67,18 +71,54 @@ const ModalCargo = ({ cargo, onClose, onUpdate }) => {
         }
     };
 
+    // --- LÓGICA DE REATIVAÇÃO ---
+    const handleReativarClick = () => {
+        setShowReativarConfirm(true);
+    };
+
+    const handleConfirmReativar = async () => {
+        setShowReativarConfirm(false);
+        try {
+            await api.patch(`/api/cargos/${cargo.id}/`, { ativo: true });
+            
+            setShowReativado(true); // Mostra aviso verde
+            setTimeout(() => {
+                setShowReativado(false);
+                if (onUpdate) onUpdate();
+                onClose();
+            }, 2500);
+        } catch (error) {
+            console.error("Erro ao reativar:", error);
+            setShowFalhaEdicao(true); // Reusa aviso de erro genérico
+            setTimeout(() => setShowFalhaEdicao(false), 3000);
+        }
+    };
+
     return (
         <div className={styles.overlay} onClick={onClose}>
             {showEditado && <EditadoComponent />}
             {showFalhaEdicao && <FalhaEdicaoComponent />}
             {showRemovido && <RemovidoComponent />}
             {showFalhaRemocao && <FalhaRemocaoComponent />}
+            
+            {/* Aviso de Sucesso ao Reativar (Reusando Cadastrado ou crie um ReativadoComponent) */}
+            {showReativado && <ReativadoComponent />} 
 
             <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+                
+                {/* CONFIRMAÇÃO DE DESATIVAÇÃO */}
                 {showConfirmacao && (
                     <ConfirmarRemocaoComponent 
                         onConfirm={handleConfirmDesativar} 
                         onCancel={() => setShowConfirmacao(false)} 
+                    />
+                )}
+
+                {/* CONFIRMAÇÃO DE REATIVAÇÃO */}
+                {showReativarConfirm && (
+                    <DesejaReativarComponent 
+                        onConfirm={handleConfirmReativar} 
+                        onCancel={() => setShowReativarConfirm(false)} 
                     />
                 )}
 
@@ -88,7 +128,8 @@ const ModalCargo = ({ cargo, onClose, onUpdate }) => {
 
                 <div className={styles.content}>
                     <h2 className={styles.title}>
-                        {isEditing ? "Editar Cargo" : "Detalhes do Cargo"}
+                        {/* Título dinâmico */}
+                        {!cargo.ativo ? "Cargo Inativo" : (isEditing ? "Editar Cargo" : "Detalhes do Cargo")}
                     </h2>
 
                     {/* NOME CARGO */}
@@ -101,7 +142,7 @@ const ModalCargo = ({ cargo, onClose, onUpdate }) => {
                         )}
                     </div>
 
-                    {/* DESCRIÇÃO CARGO - Alterado para Input */}
+                    {/* DESCRIÇÃO CARGO */}
                     <div className={styles.infoGroup}>
                         <label>Descrição</label>
                         {isEditing ? (
@@ -118,24 +159,33 @@ const ModalCargo = ({ cargo, onClose, onUpdate }) => {
                     </div>
 
                     <div className={styles.actions}>
-                        {isEditing ? (
-                            <button className={styles.saveBtn} onClick={handleSave}>
-                                <FaCheck /> SALVAR
+                        {/* LÓGICA DE BOTÕES CONDICIONAIS */}
+                        
+                        {!cargo.ativo ? (
+                            // SE INATIVO: Apenas botão REATIVAR
+                            <button className={styles.saveBtn} onClick={handleReativarClick} style={{backgroundColor: '#007bff'}}>
+                                <FaUndo /> REATIVAR
                             </button>
                         ) : (
-                            <>
-                                {/* Apenas ADMIN ou MAXIMO editam cargos */}
-                                {(user?.tipo === 'ADMINISTRADOR' || user?.tipo === 'MAXIMO') && (
-                                    <>
-                                        <button className={styles.editBtn} onClick={() => setIsEditing(true)}>
-                                            EDITAR
-                                        </button>
-                                        <button className={styles.deleteBtn} onClick={() => setShowConfirmacao(true)}>
-                                            <FaTrash /> DESATIVAR
-                                        </button>
-                                    </>
-                                )}
-                            </>
+                            // SE ATIVO: Lógica normal de edição/desativação
+                            isEditing ? (
+                                <button className={styles.saveBtn} onClick={handleSave}>
+                                    <FaCheck /> SALVAR
+                                </button>
+                            ) : (
+                                <>
+                                    {(user?.tipo === 'ADMINISTRADOR' || user?.tipo === 'MAXIMO') && (
+                                        <>
+                                            <button className={styles.editBtn} onClick={() => setIsEditing(true)}>
+                                                EDITAR
+                                            </button>
+                                            <button className={styles.deleteBtn} onClick={() => setShowConfirmacao(true)}>
+                                                <FaTrash /> DESATIVAR
+                                            </button>
+                                        </>
+                                    )}
+                                </>
+                            )
                         )}
                     </div>
                 </div>

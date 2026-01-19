@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from "react";
 import styles from "./modal_ferramenta.module.css";
 import api from "../../../services/api";
-import { FaTimes, FaEdit, FaTrash, FaCheck, FaFileAlt, FaCamera } from "react-icons/fa";
+import { FaTimes, FaEdit, FaTrash, FaCheck, FaFileAlt, FaCamera, FaUndo } from "react-icons/fa";
 
-// Imports de Componentes de Aviso
+
 import EditadoComponent from "../../Avisos/Editado/Editado";
 import FalhaEdicaoComponent from "../../Avisos/FalhaEdicao/FalhaEdicao";
 import ConfirmarRemocaoComponent from "../../Avisos/ConfirmarRemocao/ConfirmarRemocao";
 import RemovidoComponent from "../../Avisos/Removido/Removido";
 import FalhaRemocaoComponent from "../../Avisos/FalhaRemocao/FalhaRemocao";
+import ReativadoComponent from "../../Avisos/Reativado/Reativado";
+import DesejaReativarComponent from "../../Avisos/DesejaReativar/DesejaReativar";
 import AvisoEdicaoBloqueada from "../../Avisos/BloqueioEdicao/BloqueioEdicao";
 
 import Select from 'react-select';
@@ -27,7 +29,10 @@ const ModalFerramenta = ({ ferramenta, onClose, onUpdate }) => {
     const [showFalhaRemocao, setShowFalhaRemocao] = useState(false);
     const [showBloqueio, setShowBloqueio] = useState(false);
 
-    // Erros de Validação
+    // Reativação
+    const [showReativarConfirm, setShowReativarConfirm] = useState(false);
+    const [showReativado, setShowReativado] = useState(false);
+
     const [fieldErrors, setFieldErrors] = useState({ numero_serie: '', data_aquisicao: '' });
 
     const [editData, setEditData] = useState({
@@ -40,29 +45,17 @@ const ModalFerramenta = ({ ferramenta, onClose, onUpdate }) => {
     });
 
     const [fileName, setFileName] = useState('');
-
-    // Preview da imagem
     const [imagePreview, setImagePreview] = useState(ferramenta.foto || defaultImg);
 
-    useEffect(() => {
-        setImagePreview(ferramenta.foto || defaultImg);
-    }, [ferramenta.foto]);
-
-    useEffect(() => {
-        if (editData.foto) {
-          setImagePreview(URL.createObjectURL(editData.foto));
-        }
-    }, [editData.foto]);
+    useEffect(() => { setImagePreview(ferramenta.foto || defaultImg); }, [ferramenta.foto]);
+    useEffect(() => { if (editData.foto) setImagePreview(URL.createObjectURL(editData.foto)); }, [editData.foto]);
 
     useEffect(() => {
         if (isEditing) {
             const loadDepositos = async () => {
                 try {
                     const response = await api.get('/api/depositos/');
-                    
-                    // Tratamento da paginação
                     const lista = response.data.results || response.data;
-
                     const formatados = lista.map(d => ({
                         value: d.id,
                         label: `${d.nome} ${d.filial_nome ? `(${d.filial_nome})` : ''}`
@@ -81,10 +74,8 @@ const ModalFerramenta = ({ ferramenta, onClose, onUpdate }) => {
         setFieldErrors({ ...fieldErrors, [e.target.name]: '' });
     };
 
-    const handleDepositoChange = (selectedOption) => {
-        setEditData({ ...editData, deposito: selectedOption });
-    };
-
+    const handleDepositoChange = (selectedOption) => { setEditData({ ...editData, deposito: selectedOption }); };
+    
     const handleFileChange = (e) => {
         if (e.target.files[0]) {
             setEditData({ ...editData, foto: e.target.files[0] });
@@ -98,7 +89,6 @@ const ModalFerramenta = ({ ferramenta, onClose, onUpdate }) => {
         return name;
     };
 
-    // --- BLOQUEIO PARA EDIÇÃO ---
     const handleEditClick = () => {
         if (ferramenta.estado !== 'DISPONIVEL') {
             setShowBloqueio(true);
@@ -108,15 +98,12 @@ const ModalFerramenta = ({ ferramenta, onClose, onUpdate }) => {
         setIsEditing(true);
     };
 
-    // --- NOVA FUNÇÃO: BLOQUEIO PARA DESATIVAÇÃO ---
     const handleDeactivateClick = () => {
-        // Se não estiver disponível, mostra o bloqueio e para.
         if (ferramenta.estado !== 'DISPONIVEL') {
             setShowBloqueio(true);
             setTimeout(() => setShowBloqueio(false), 3000);
             return;
         }
-        // Se estiver OK, mostra a confirmação
         setShowConfirmacao(true);
     };
 
@@ -130,17 +117,10 @@ const ModalFerramenta = ({ ferramenta, onClose, onUpdate }) => {
         const formData = new FormData();
         formData.append('nome', editData.nome);
         formData.append('numero_serie', editData.numero_serie);
-        
-        if (editData.data_aquisicao) {
-            formData.append('data_aquisicao', editData.data_aquisicao);
-        }
-        
+        if (editData.data_aquisicao) formData.append('data_aquisicao', editData.data_aquisicao);
         formData.append('descricao', editData.descricao);
         formData.append('deposito', editData.deposito.value);
-        
-        if (editData.foto) {
-            formData.append('foto', editData.foto);
-        }
+        if (editData.foto) formData.append('foto', editData.foto);
 
         try {
             await api.patch(`/api/ferramentas/${ferramenta.id}/`, formData, {
@@ -159,8 +139,6 @@ const ModalFerramenta = ({ ferramenta, onClose, onUpdate }) => {
                 let msg = error.response.data.numero_serie[0];
                 if (msg.includes('already exists')) msg = "Nº de Série já existe.";
                 setFieldErrors(prev => ({ ...prev, numero_serie: msg }));
-            } else if (error.response?.data?.data_aquisicao) {
-                setFieldErrors(prev => ({ ...prev, data_aquisicao: error.response.data.data_aquisicao[0] }));
             } else {
                 setShowFalhaEdicao(true);
                 setTimeout(() => setShowFalhaEdicao(false), 3000);
@@ -187,6 +165,31 @@ const ModalFerramenta = ({ ferramenta, onClose, onUpdate }) => {
         }
     };
 
+    // --- REATIVAR ---
+    const handleReativarClick = () => {
+        setShowReativarConfirm(true);
+    };
+
+    const handleConfirmReativar = async () => {
+        setShowReativarConfirm(false);
+        try {
+            // MUDANÇA: Chama o endpoint específico
+            await api.patch(`/api/ferramentas/${ferramenta.id}/reativar/`);
+            
+            setShowReativado(true);
+            setTimeout(() => {
+                setShowReativado(false);
+                if (onUpdate) onUpdate();
+                onClose();
+            }, 2500);
+        } catch (error) {
+            console.error("Erro ao reativar:", error);
+            // Mostra erro genérico ou específico
+            if (error.response?.data?.error) alert(error.response.data.error);
+            setShowFalhaRemocao(true); // Reusa aviso de falha
+            setTimeout(() => setShowFalhaRemocao(false), 3000);
+        }
+    };
     const handleGerarRelatorio = () => { alert("Funcionalidade de Relatório em desenvolvimento."); };
 
     const formatStatus = (status) => {
@@ -213,6 +216,7 @@ const ModalFerramenta = ({ ferramenta, onClose, onUpdate }) => {
             {showRemovido && <RemovidoComponent />}
             {showFalhaRemocao && <FalhaRemocaoComponent />}
             {showBloqueio && (<AvisoEdicaoBloqueada />)}
+            {showReativado && <ReativadoComponent />}
 
             <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
                 
@@ -223,82 +227,58 @@ const ModalFerramenta = ({ ferramenta, onClose, onUpdate }) => {
                     />
                 )}
 
+                {showReativarConfirm && (
+                    <DesejaReativarComponent 
+                        onConfirm={handleConfirmReativar} 
+                        onCancel={() => setShowReativarConfirm(false)} 
+                    />
+                )}
+
                 <button className={styles.closeBtn} onClick={onClose}>
                     <FaTimes />
                 </button>
 
                 <div className={styles.content}>
                     <h2 className={styles.title}>
-                        {isEditing ? "Editar Ferramenta" : "Detalhes"}
+                        {ferramenta.estado === 'INATIVA' ? "Ferramenta Inativa" : (isEditing ? "Editar Ferramenta" : "Detalhes")}
                     </h2>
 
+                    {/* ... (Campos de Nome, Serial, Data, Descrição, Depósito mantidos) ... */}
                     <div className={styles.infoGroup}>
                         <label>Nome</label>
-                        {isEditing ? (
-                            <input className={styles.input} name="nome" value={editData.nome} onChange={handleChange} />
-                        ) : (
-                            <p className={styles.textValue}>{ferramenta.nome}</p>
-                        )}
+                        {isEditing ? <input className={styles.input} name="nome" value={editData.nome} onChange={handleChange} /> : <p className={styles.textValue}>{ferramenta.nome}</p>}
                     </div>
 
                     <div className={styles.infoGroup}>
                         <label>Número de Série</label>
                         {isEditing ? (
                             <>
-                                <input 
-                                    className={`${styles.input} ${fieldErrors.numero_serie ? styles.inputError : ''}`}
-                                    name="numero_serie" 
-                                    value={editData.numero_serie} 
-                                    onChange={handleChange} 
-                                />
+                                <input className={`${styles.input} ${fieldErrors.numero_serie ? styles.inputError : ''}`} name="numero_serie" value={editData.numero_serie} onChange={handleChange} />
                                 {fieldErrors.numero_serie && <span className={styles.errorMsg}>{fieldErrors.numero_serie}</span>}
                             </>
-                        ) : (
-                            <p className={styles.textValue}>{ferramenta.numero_serie}</p>
-                        )}
+                        ) : <p className={styles.textValue}>{ferramenta.numero_serie}</p>}
                     </div>
 
                     <div className={styles.infoGroup}>
                         <label>Data de Aquisição</label>
                         {isEditing ? (
                             <>
-                                <input 
-                                    type="date"
-                                    className={`${styles.input} ${fieldErrors.data_aquisicao ? styles.inputError : ''}`}
-                                    name="data_aquisicao" 
-                                    value={editData.data_aquisicao} 
-                                    onChange={handleChange} 
-                                />
+                                <input type="date" className={`${styles.input} ${fieldErrors.data_aquisicao ? styles.inputError : ''}`} name="data_aquisicao" value={editData.data_aquisicao} onChange={handleChange} />
                                 {fieldErrors.data_aquisicao && <span className={styles.errorMsg}>{fieldErrors.data_aquisicao}</span>}
                             </>
-                        ) : (
-                            <p className={styles.textValue}>{formatDate(ferramenta.data_aquisicao)}</p>
-                        )}
+                        ) : <p className={styles.textValue}>{formatDate(ferramenta.data_aquisicao)}</p>}
                     </div>
 
                     <div className={styles.infoGroup}>
                         <label>Descrição</label>
-                        {isEditing ? (
-                            <textarea className={styles.textarea} name="descricao" value={editData.descricao} onChange={handleChange} rows="3" />
-                        ) : (
-                            <p className={styles.textValue}>{ferramenta.descricao || "Sem descrição."}</p>
-                        )}
+                        {isEditing ? <textarea className={styles.textarea} name="descricao" value={editData.descricao} onChange={handleChange} rows="3" /> : <p className={styles.textValue}>{ferramenta.descricao || "Sem descrição."}</p>}
                     </div>
 
                     <div className={styles.infoGroup}>
                         <label>Depósito</label>
                         {isEditing ? (
-                            <Select
-                                styles={customSelectStyles}
-                                options={depositosOptions}
-                                value={editData.deposito}
-                                onChange={handleDepositoChange}
-                                placeholder="Selecione o depósito..."
-                                menuPosition="fixed"
-                            />
-                        ) : (
-                            <p className={styles.textHighlight}>{ferramenta.deposito_nome || "N/A"}</p>
-                        )}
+                            <Select styles={customSelectStyles} options={depositosOptions} value={editData.deposito} onChange={handleDepositoChange} placeholder="Selecione..." menuPosition="fixed" />
+                        ) : <p className={styles.textHighlight}>{ferramenta.deposito_nome || "N/A"}</p>}
                     </div>
 
                     {isEditing && (
@@ -307,13 +287,7 @@ const ModalFerramenta = ({ ferramenta, onClose, onUpdate }) => {
                             <label htmlFor="modalFotoInput" className={styles.customFileLabel}>
                                 {fileName ? `Selecionado: ${formatFileName(fileName)}` : "Clique para selecionar nova foto..."}
                             </label>
-                            <input 
-                                type="file" 
-                                id="modalFotoInput"
-                                accept="image/*"
-                                onChange={handleFileChange}
-                                className={styles.hiddenFileInput}
-                            />
+                            <input type="file" id="modalFotoInput" accept="image/*" onChange={handleFileChange} className={styles.hiddenFileInput} />
                         </div>
                     )}
 
@@ -334,25 +308,34 @@ const ModalFerramenta = ({ ferramenta, onClose, onUpdate }) => {
                     </div>
 
                     <div className={styles.actions}>
-                        {isEditing ? (
-                            <button className={styles.saveBtn} onClick={handleSave}>
-                                <FaCheck /> SALVAR
-                            </button>
-                        ) : (
+                        {/* LÓGICA CONDICIONAL DE BOTÕES */}
+                        {ferramenta.estado === 'INATIVA' ? (
                             <>
-                                <button className={styles.editBtn} onClick={handleEditClick}>
-                                    <FaEdit /> EDITAR
+                                <button className={styles.saveBtn} onClick={handleReativarClick} style={{backgroundColor: '#007bff'}}>
+                                    <FaUndo /> REATIVAR
                                 </button>
-                                
-                                {/* ATUALIZADO: Agora chama handleDeactivateClick */}
-                                <button className={styles.deleteBtn} onClick={handleDeactivateClick}>
-                                    <FaTrash /> DESATIVAR
-                                </button>
-                                
                                 <button className={styles.reportBtn} onClick={handleGerarRelatorio}>
                                     <FaFileAlt /> RELATÓRIO
                                 </button>
                             </>
+                        ) : (
+                            isEditing ? (
+                                <button className={styles.saveBtn} onClick={handleSave}>
+                                    <FaCheck /> SALVAR
+                                </button>
+                            ) : (
+                                <>
+                                    <button className={styles.editBtn} onClick={handleEditClick}>
+                                        <FaEdit /> EDITAR
+                                    </button>
+                                    <button className={styles.deleteBtn} onClick={handleDeactivateClick}>
+                                        <FaTrash /> DESATIVAR
+                                    </button>
+                                    <button className={styles.reportBtn} onClick={handleGerarRelatorio}>
+                                        <FaFileAlt /> RELATÓRIO
+                                    </button>
+                                </>
+                            )
                         )}
                     </div>
                 </div>

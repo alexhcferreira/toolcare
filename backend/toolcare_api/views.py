@@ -4,6 +4,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.db import transaction
+from rest_framework.views import APIView
 import re
 
 from .models import Usuario, Filial, Deposito, Setor, Cargo, Funcionario, Ferramenta, Emprestimo, Manutencao
@@ -14,6 +15,60 @@ from .serializers import (
 )
 from .permissions import IsAdminOrMaximo, UsuarioPermissions, ReadOnly
 
+class DashboardView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        
+        # Filtros de Coordenador (se necessário)
+        if user.tipo == 'COORDENADOR':
+            filiais = user.filiais.all()
+            total_funcionarios = Funcionario.objects.filter(filiais__in=filiais).distinct().count()
+            total_ferramentas = Ferramenta.objects.filter(deposito__filial__in=filiais).count()
+            
+            # Ferramentas por status
+            ferramentas_disponiveis = Ferramenta.objects.filter(deposito__filial__in=filiais, estado='DISPONIVEL').count()
+            ferramentas_emprestadas = Ferramenta.objects.filter(deposito__filial__in=filiais, estado='EMPRESTADA').count()
+            ferramentas_manutencao = Ferramenta.objects.filter(deposito__filial__in=filiais, estado='EM_MANUTENCAO').count()
+            
+            # Funcionários com/sem empréstimo
+            # (Lógica simplificada: se tem empréstimo ativo, conta)
+            # Count distinct de funcionarios em emprestimos ativos
+            funcs_com_emprestimo = Emprestimo.objects.filter(
+                ferramenta__deposito__filial__in=filiais, 
+                ativo=True
+            ).values('funcionario').distinct().count()
+
+        else:
+            # ADMIN / MAXIMO (Vê tudo)
+            total_funcionarios = Funcionario.objects.count()
+            total_ferramentas = Ferramenta.objects.count()
+            
+            ferramentas_disponiveis = Ferramenta.objects.filter(estado='DISPONIVEL').count()
+            ferramentas_emprestadas = Ferramenta.objects.filter(estado='EMPRESTADA').count()
+            ferramentas_manutencao = Ferramenta.objects.filter(estado='EM_MANUTENCAO').count()
+            
+            funcs_com_emprestimo = Emprestimo.objects.filter(ativo=True).values('funcionario').distinct().count()
+
+        funcs_sem_emprestimo = total_funcionarios - funcs_com_emprestimo
+        if funcs_sem_emprestimo < 0: funcs_sem_emprestimo = 0 # Segurança
+
+        data = {
+            'total_funcionarios': total_funcionarios,
+            'total_ferramentas': total_ferramentas,
+            'funcionarios': {
+                'com_emprestimo': funcs_com_emprestimo,
+                'sem_emprestimo': funcs_sem_emprestimo
+            },
+            'ferramentas': {
+                'disponiveis': ferramentas_disponiveis,
+                'emprestadas': ferramentas_emprestadas,
+                'manutencao': ferramentas_manutencao
+            }
+        }
+        
+        return Response(data)
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
@@ -202,6 +257,33 @@ class FuncionarioViewSet(viewsets.ModelViewSet):
     queryset = Funcionario.objects.all()
     search_fields = ['nome', 'matricula', 'cpf', 'cargo__nome_cargo', 'setor__nome_setor', 'filiais__nome', 'filiais__cidade']
 
+    @action(detail=True, methods=['patch'])
+    def desativar(self, request, pk=None):
+        funcionario = self.get_object()
+        
+        if not funcionario.ativo:
+             return Response({"error": "Funcionário já está inativo."}, status=status.HTTP_400_BAD_REQUEST)
+             
+        # Bloqueia se tiver empréstimo ativo (Segurança extra)
+        tem_emprestimo = Emprestimo.objects.filter(funcionario=funcionario, ativo=True).exists()
+        if tem_emprestimo:
+             return Response({"error": "Não é possível desativar funcionário com empréstimos ativos."}, status=status.HTTP_400_BAD_REQUEST)
+
+        funcionario.ativo = False
+        funcionario.save()
+        return Response({"status": "Funcionário desativado com sucesso"})
+
+    @action(detail=True, methods=['patch'])
+    def reativar(self, request, pk=None):
+        funcionario = self.get_object()
+        
+        if funcionario.ativo:
+             return Response({"error": "Funcionário já está ativo."}, status=status.HTTP_400_BAD_REQUEST)
+             
+        funcionario.ativo = True
+        funcionario.save()
+        return Response({"status": "Funcionário reativado com sucesso"})
+
     def get_queryset(self):
         user = self.request.user
         queryset = Funcionario.objects.all().order_by('nome')
@@ -263,6 +345,8 @@ class FuncionarioViewSet(viewsets.ModelViewSet):
         if self.request.user.tipo in ['ADMINISTRADOR', 'MAXIMO']:
             methods.append('delete')
         return methods
+    
+
 
 
 class FerramentaViewSet(viewsets.ModelViewSet):
@@ -275,6 +359,19 @@ class FerramentaViewSet(viewsets.ModelViewSet):
         'deposito__nome', 'deposito__filial__nome', 'deposito__filial__cidade',
         'estado', 'data_aquisicao'
     ]
+
+    @action(detail=True, methods=['patch'])
+    def reativar(self, request, pk=None):
+        ferramenta = self.get_object()
+        
+        # Só reativa se estiver INATIVA
+        if ferramenta.estado != Ferramenta.EstadoChoices.INATIVA:
+             return Response({"error": "Apenas ferramentas inativas podem ser reativadas."}, status=status.HTTP_400_BAD_REQUEST)
+             
+        ferramenta.estado = Ferramenta.EstadoChoices.DISPONIVEL
+        ferramenta.save()
+        
+        return Response({"status": "Ferramenta reativada com sucesso"})
 
     @action(detail=True, methods=['patch'])
     def desativar(self, request, pk=None):
