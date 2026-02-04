@@ -21,38 +21,52 @@ class DashboardView(APIView):
     def get(self, request):
         user = request.user
         
-        # Filtros de Coordenador (se necessário)
         if user.tipo == 'COORDENADOR':
             filiais = user.filiais.all()
-            total_funcionarios = Funcionario.objects.filter(filiais__in=filiais).distinct().count()
-            total_ferramentas = Ferramenta.objects.filter(deposito__filial__in=filiais).count()
             
-            # Ferramentas por status
-            ferramentas_disponiveis = Ferramenta.objects.filter(deposito__filial__in=filiais, estado='DISPONIVEL').count()
-            ferramentas_emprestadas = Ferramenta.objects.filter(deposito__filial__in=filiais, estado='EMPRESTADA').count()
-            ferramentas_manutencao = Ferramenta.objects.filter(deposito__filial__in=filiais, estado='EM_MANUTENCAO').count()
+            # --- FUNCIONÁRIOS (Somente Ativos) ---
+            total_funcionarios = Funcionario.objects.filter(filiais__in=filiais, ativo=True).distinct().count()
             
-            # Funcionários com/sem empréstimo
-            # (Lógica simplificada: se tem empréstimo ativo, conta)
-            # Count distinct de funcionarios em emprestimos ativos
+            # --- FERRAMENTAS (Somente Ativas) ---
+            # Exclui as que estão com estado 'INATIVA'
+            queryset_ferramentas = Ferramenta.objects.filter(deposito__filial__in=filiais).exclude(estado='INATIVA')
+            total_ferramentas = queryset_ferramentas.count()
+            
+            ferramentas_disponiveis = queryset_ferramentas.filter(estado='DISPONIVEL').count()
+            ferramentas_emprestadas = queryset_ferramentas.filter(estado='EMPRESTADA').count()
+            ferramentas_manutencao = queryset_ferramentas.filter(estado='EM_MANUTENCAO').count()
+            
+            # --- EMPRÉSTIMOS ---
+            # Conta funcionários ATIVOS que têm empréstimos ATIVOS
             funcs_com_emprestimo = Emprestimo.objects.filter(
                 ferramenta__deposito__filial__in=filiais, 
-                ativo=True
+                ativo=True,
+                funcionario__ativo=True # Só conta se o funcionário ainda é ativo
             ).values('funcionario').distinct().count()
 
         else:
-            # ADMIN / MAXIMO (Vê tudo)
-            total_funcionarios = Funcionario.objects.count()
-            total_ferramentas = Ferramenta.objects.count()
+            # ADMIN / MAXIMO
             
-            ferramentas_disponiveis = Ferramenta.objects.filter(estado='DISPONIVEL').count()
-            ferramentas_emprestadas = Ferramenta.objects.filter(estado='EMPRESTADA').count()
-            ferramentas_manutencao = Ferramenta.objects.filter(estado='EM_MANUTENCAO').count()
+            # Somente Funcionários Ativos
+            total_funcionarios = Funcionario.objects.filter(ativo=True).count()
             
-            funcs_com_emprestimo = Emprestimo.objects.filter(ativo=True).values('funcionario').distinct().count()
+            # Somente Ferramentas Ativas (Não INATIVAS)
+            queryset_ferramentas = Ferramenta.objects.exclude(estado='INATIVA')
+            total_ferramentas = queryset_ferramentas.count()
+            
+            ferramentas_disponiveis = queryset_ferramentas.filter(estado='DISPONIVEL').count()
+            ferramentas_emprestadas = queryset_ferramentas.filter(estado='EMPRESTADA').count()
+            ferramentas_manutencao = queryset_ferramentas.filter(estado='EM_MANUTENCAO').count()
+            
+            # Funcionários Ativos com Empréstimo Ativo
+            funcs_com_emprestimo = Emprestimo.objects.filter(
+                ativo=True,
+                funcionario__ativo=True
+            ).values('funcionario').distinct().count()
 
+        # Calcula o resto
         funcs_sem_emprestimo = total_funcionarios - funcs_com_emprestimo
-        if funcs_sem_emprestimo < 0: funcs_sem_emprestimo = 0 # Segurança
+        if funcs_sem_emprestimo < 0: funcs_sem_emprestimo = 0
 
         data = {
             'total_funcionarios': total_funcionarios,

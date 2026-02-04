@@ -28,11 +28,11 @@ const VisaoGeral = () => {
     if (!dados) return <div className={styles.loading}>Erro ao carregar dados.</div>;
 
     return (
-        /* <div className={styles.container}>
-            {/* ÁREA SUPERIOR: GRÁFICOS }
+        <div className={styles.container}>
+            {/* ÁREA SUPERIOR: GRÁFICOS */}
             <div className={styles.chartsRow}>
                 
-                {/* GRÁFICO FUNCIONÁRIOS }
+                {/* GRÁFICO FUNCIONÁRIOS */}
                 <div className={styles.chartWrapper}>
                     <GraficoFuncionarios 
                         semEmprestimo={dados.funcionarios.sem_emprestimo} 
@@ -44,7 +44,7 @@ const VisaoGeral = () => {
                     </div>
                 </div>
 
-                {/* GRÁFICO FERRAMENTAS }
+                {/* GRÁFICO FERRAMENTAS */}
                 <div className={styles.chartWrapper}>
                     <GraficoFerramentas 
                         disponiveis={dados.ferramentas.disponiveis}
@@ -58,10 +58,10 @@ const VisaoGeral = () => {
                 </div>
             </div>
 
-            {/* ÁREA INFERIOR: LEGENDAS E ESTATÍSTICAS }
+            {/* ÁREA INFERIOR: LEGENDAS E ESTATÍSTICAS */}
             <div className={styles.statsRow}>
                 
-                {/* COLUNA FUNCIONÁRIOS }
+                {/* COLUNA FUNCIONÁRIOS */}
                 <div className={styles.statsColumn}>
                     <div className={styles.statItem}>
                         <div className={`${styles.bar} ${styles.greenBar}`}></div>
@@ -86,7 +86,7 @@ const VisaoGeral = () => {
                     </div>
                 </div>
 
-                {/* COLUNA FERRAMENTAS }
+                {/* COLUNA FERRAMENTAS */}
                 <div className={styles.statsColumn}>
                     <div className={styles.statItem}>
                         <div className={`${styles.bar} ${styles.greenBar}`}></div>
@@ -122,9 +122,7 @@ const VisaoGeral = () => {
                     </div>
                 </div>
             </div>
-        </div> 
-        */
-        null // Retornar null ou um fragmento vazio enquanto o código está comentado para não quebrar o React
+        </div>
     );
 };
 

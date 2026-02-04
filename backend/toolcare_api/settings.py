@@ -1,6 +1,7 @@
 from pathlib import Path
 from corsheaders.defaults import default_headers
 from datetime import timedelta
+import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -66,11 +67,14 @@ WSGI_APPLICATION = "toolcare_api.wsgi.application"
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'toolcare_db',
-        'USER': 'postgres',      # O usuário padrão é postgres
-        'PASSWORD': '123', # <--- COLOQUE A SENHA QUE VOCÊ DEFINIU NA INSTALAÇÃO
-        'HOST': 'localhost',
-        'PORT': '5432',
+        'NAME': os.environ.get('DB_NAME', 'toolcare_db'),
+        'USER': os.environ.get('DB_USER', 'postgres'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', 'admin123'),
+        'HOST': os.environ.get('DB_HOST', 'localhost'),
+        'PORT': os.environ.get('DB_PORT', '5432'),
+        'OPTIONS': {
+            'client_encoding': 'UTF8',
+        },
     }
 }
 
