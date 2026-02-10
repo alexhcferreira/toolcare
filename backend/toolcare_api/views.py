@@ -5,6 +5,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.db import transaction
 from rest_framework.views import APIView
+from django.db.models import Q  
 import re
 
 from .models import Usuario, Filial, Deposito, Setor, Cargo, Funcionario, Ferramenta, Emprestimo, Manutencao
@@ -462,16 +463,39 @@ class EmprestimoViewSet(viewsets.ModelViewSet):
         queryset = Emprestimo.objects.all().order_by('-data_emprestimo')
 
         if user.tipo == 'COORDENADOR':
+            # Filtra por filial. Nota: Para inativos antigos sem vínculo, isso pode ocultá-los.
+            # Se precisar ver histórico global da filial, o modelo precisaria guardar o ID da filial.
             queryset = queryset.filter(ferramenta__deposito__filial__in=user.filiais.all())
 
+        # Filtro de URL (usado no bloqueio de edição de funcionário)
         func_id = self.request.query_params.get('funcionario')
         if func_id:
-            queryset = queryset.filter(funcionario__id=func_id)
+            # Busca pelo ID atual OU pela matrícula histórica (para itens finalizados onde o vínculo foi quebrado)
+            try:
+                matricula = Funcionario.objects.get(id=func_id).matricula
+                queryset = queryset.filter(
+                    Q(funcionario__id=func_id) | 
+                    Q(matricula_funcionario_historico=matricula)
+                )
+            except Funcionario.DoesNotExist:
+                pass
 
+        # Filtro de Relatório (usado para buscar histórico de uma ferramenta específica)
+        ferramenta_id = self.request.query_params.get('ferramenta')
+        if ferramenta_id:
+            # Busca tanto no relacionamento ativo quanto no histórico de texto
+            # Isso garante que o relatório pegue tudo, mesmo depois de finalizado
+            queryset = queryset.filter(
+                Q(ferramenta__id=ferramenta_id) | 
+                Q(numero_serie_ferramenta_historico=Ferramenta.objects.get(id=ferramenta_id).numero_serie)
+            )
+
+        # Filtros da Barra de Pesquisa
         search_field = self.request.query_params.get('search_field')
         search_value = self.request.query_params.get('search_value')
 
         if search_field and search_value:
+            # 1. DATAS CORINGA
             if search_field in ['data_emprestimo', 'data_devolucao'] and '/' in search_value:
                 try:
                     partes = search_value.split('/')
@@ -484,26 +508,46 @@ class EmprestimoViewSet(viewsets.ModelViewSet):
                         queryset = queryset.filter(**filtro)
                 except ValueError: pass
 
+            # 2. NULOS
             elif search_value.lower() in ['sem', 'nenhum', 'null', 'vazio', 'em aberto', 'aberto']:
                 if search_field == 'data_devolucao':
                     queryset = queryset.filter(data_devolucao__isnull=True)
             
+            # 3. TEXTO E HISTÓRICO (Busca Híbrida)
             else:
-                campos_map = {
-                    'nome': 'nome__icontains',
-                    'ferramenta': 'ferramenta__nome__icontains',
-                    'serial': 'ferramenta__numero_serie__icontains',
-                    'funcionario': 'funcionario__nome__icontains',
-                    'matricula': 'funcionario__matricula__icontains',
-                    'observacoes': 'observacoes__icontains'
-                }
-                if search_field in campos_map:
-                    lookup = campos_map[search_field]
-                    queryset = queryset.filter(**{lookup: search_value})
+                if search_field == 'ferramenta': 
+                    queryset = queryset.filter(
+                        Q(ferramenta__nome__icontains=search_value) | 
+                        Q(nome_ferramenta_historico__icontains=search_value)
+                    )
+                elif search_field == 'serial': 
+                    queryset = queryset.filter(
+                        Q(ferramenta__numero_serie__icontains=search_value) | 
+                        Q(numero_serie_ferramenta_historico__icontains=search_value)
+                    )
+                elif search_field == 'funcionario':
+                    queryset = queryset.filter(
+                        Q(funcionario__nome__icontains=search_value) | 
+                        Q(nome_funcionario_historico__icontains=search_value)
+                    )
+                elif search_field == 'matricula':
+                    queryset = queryset.filter(
+                        Q(funcionario__matricula__icontains=search_value) | 
+                        Q(matricula_funcionario_historico__icontains=search_value)
+                    )
+                else:
+                    campos_map = {
+                        'nome': 'nome__icontains',
+                        'observacoes': 'observacoes__icontains'
+                    }
+                    if search_field in campos_map:
+                        queryset = queryset.filter(**{campos_map[search_field]: search_value})
 
+        # --- FILTRO DE ATIVO/INATIVO (FINAL) ---
         ativo_param = self.request.query_params.get('ativo')
         if ativo_param is not None:
-            is_active = ativo_param.lower() == 'true'
+            # Converte string 'true'/'True' para booleano
+            is_active = ativo_param.lower() in ['true', '1', 't']
             queryset = queryset.filter(ativo=is_active)
             
         return queryset
@@ -516,6 +560,7 @@ class EmprestimoViewSet(viewsets.ModelViewSet):
             ferramenta_queryset = ferramenta_queryset.filter(deposito__filial__in=user.filiais.all())
         context['ferramenta_queryset'] = ferramenta_queryset
         return context
+
 
 class ManutencaoViewSet(viewsets.ModelViewSet):
     serializer_class = ManutencaoSerializer
@@ -533,10 +578,25 @@ class ManutencaoViewSet(viewsets.ModelViewSet):
         if user.tipo == 'COORDENADOR':
             queryset = queryset.filter(ferramenta__deposito__filial__in=user.filiais.all())
 
+        # Filtro de Relatório
+        ferramenta_id = self.request.query_params.get('ferramenta')
+        if ferramenta_id:
+            try:
+                # Busca pelo ID atual ou pelo Serial no histórico
+                serial = Ferramenta.objects.get(id=ferramenta_id).numero_serie
+                queryset = queryset.filter(
+                    Q(ferramenta__id=ferramenta_id) | 
+                    Q(numero_serie_ferramenta_historico=serial)
+                )
+            except Ferramenta.DoesNotExist:
+                pass
+
+        # Filtros de Busca
         search_field = self.request.query_params.get('search_field')
         search_value = self.request.query_params.get('search_value')
 
         if search_field and search_value:
+            # 1. DATAS CORINGA
             if search_field in ['data_inicio', 'data_fim'] and '/' in search_value:
                 try:
                     partes = search_value.split('/')
@@ -549,23 +609,34 @@ class ManutencaoViewSet(viewsets.ModelViewSet):
                         queryset = queryset.filter(**filtro)
                 except ValueError: pass
 
+            # 2. TIPO
             elif search_field == 'tipo':
                 queryset = queryset.filter(tipo__iexact=search_value)
 
+            # 3. TEXTO E HISTÓRICO
             else:
-                campos_map = {
-                    'nome': 'nome__icontains',
-                    'ferramenta': 'ferramenta__nome__icontains',
-                    'serial': 'ferramenta__numero_serie__icontains',
-                    'observacoes': 'observacoes__icontains'
-                }
-                if search_field in campos_map:
-                    lookup = campos_map[search_field]
-                    queryset = queryset.filter(**{lookup: search_value})
+                if search_field == 'ferramenta':
+                    queryset = queryset.filter(
+                        Q(ferramenta__nome__icontains=search_value) | 
+                        Q(nome_ferramenta_historico__icontains=search_value)
+                    )
+                elif search_field == 'serial':
+                    queryset = queryset.filter(
+                        Q(ferramenta__numero_serie__icontains=search_value) | 
+                        Q(numero_serie_ferramenta_historico__icontains=search_value)
+                    )
+                else:
+                    campos_map = {
+                        'nome': 'nome__icontains',
+                        'observacoes': 'observacoes__icontains'
+                    }
+                    if search_field in campos_map:
+                        queryset = queryset.filter(**{campos_map[search_field]: search_value})
 
+        # --- FILTRO DE ATIVO/INATIVO (FINAL) ---
         ativo_param = self.request.query_params.get('ativo')
         if ativo_param is not None:
-            is_active = ativo_param.lower() == 'true'
+            is_active = ativo_param.lower() in ['true', '1', 't']
             queryset = queryset.filter(ativo=is_active)
             
         return queryset

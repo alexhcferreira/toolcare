@@ -16,6 +16,7 @@ import AvisoEdicaoBloqueada from "../../Avisos/BloqueioEdicao/BloqueioEdicao";
 import Select from 'react-select';
 import { customSelectStyles } from '../../CustomSelect/selectStyles';
 import defaultImg from "../../../assets/defaults/default_ferramenta.jpg";
+import { gerarRelatorioFerramenta } from "../../../utils/reportGenerator";
 
 const ModalFerramenta = ({ ferramenta, onClose, onUpdate }) => {
     const [isEditing, setIsEditing] = useState(false);
@@ -190,7 +191,31 @@ const ModalFerramenta = ({ ferramenta, onClose, onUpdate }) => {
             setTimeout(() => setShowFalhaRemocao(false), 3000);
         }
     };
-    const handleGerarRelatorio = () => { alert("Funcionalidade de Relatório em desenvolvimento."); };
+    const handleGerarRelatorio = async () => {
+        try {
+            // Usa o número de série para filtrar exatamente o histórico desta ferramenta
+            // Isso aproveita o sistema de busca que já implementamos no backend
+            const params = {
+                search_field: 'serial',
+                search_value: ferramenta.numero_serie
+            };
+
+            const [emprestimosRes, manutencoesRes] = await Promise.all([
+                api.get(`/api/emprestimos/`, { params }),
+                api.get(`/api/manutencoes/`, { params })
+            ]);
+
+            const listaEmprestimos = emprestimosRes.data.results || emprestimosRes.data;
+            const listaManutencoes = manutencoesRes.data.results || manutencoesRes.data;
+
+            // Chama a função utilitária
+            gerarRelatorioFerramenta(ferramenta, listaEmprestimos, listaManutencoes);
+
+        } catch (error) {
+            console.error("Erro ao gerar relatório:", error);
+            alert("Erro ao buscar histórico para o relatório.");
+        }
+    };
 
     const formatStatus = (status) => {
         const map = { 'DISPONIVEL': 'Disponível', 'EMPRESTADA': 'Emprestada', 'EM_MANUTENCAO': 'Em Manutenção', 'INATIVA': 'Inativa' };

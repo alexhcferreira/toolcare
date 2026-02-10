@@ -4,6 +4,7 @@ import styles from "../Ferramenta/modal_ferramenta.module.css";
 import api from "../../../services/api";
 import { FaTimes, FaEdit, FaTrash, FaCheck, FaFileAlt, FaCamera, FaUndo } from "react-icons/fa";
 import { AuthContext } from "../../../context/AuthContext";
+import { gerarRelatorioFuncionario } from "../../../utils/reportGenerator";
 
 // Imports dos Componentes de Aviso
 import EditadoComponent from "../../Avisos/Editado/Editado";
@@ -277,7 +278,22 @@ const ModalFuncionario = ({ funcionario, onClose, onUpdate }) => {
         }
     };
 
-    const handleGerarRelatorio = () => { alert("Funcionalidade de Relatório em desenvolvimento."); };
+    const handleGerarRelatorio = async () => {
+        try {
+            // Busca histórico filtrando pelo ID do funcionário
+            const response = await api.get(`/api/emprestimos/?funcionario=${funcionario.id}`);
+            
+            // Trata paginação
+            const listaEmprestimos = response.data.results || response.data;
+
+            // Gera PDF
+            gerarRelatorioFuncionario(funcionario, listaEmprestimos);
+
+        } catch (error) {
+            console.error("Erro ao gerar relatório:", error);
+            alert("Erro ao buscar histórico.");
+        }
+    };
 
     return (
         <div className={styles.overlay} onClick={onClose}>
