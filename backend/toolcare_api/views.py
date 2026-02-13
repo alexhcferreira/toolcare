@@ -3,8 +3,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from django.db import transaction
 from rest_framework.views import APIView
+from django.db import transaction
 from django.db.models import Q  
 import re
 
@@ -16,56 +16,65 @@ from .serializers import (
 )
 from .permissions import IsAdminOrMaximo, UsuarioPermissions, ReadOnly
 
+# --- DASHBOARD (VISÃO GERAL) ---
+
 class DashboardView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         user = request.user
         
+        # Filtro opcional vindo do frontend
+        filial_id_param = request.query_params.get('filial')
+        
+        # Define o escopo base de filiais
         if user.tipo == 'COORDENADOR':
-            filiais = user.filiais.all()
-            
-            # --- FUNCIONÁRIOS (Somente Ativos) ---
-            total_funcionarios = Funcionario.objects.filter(filiais__in=filiais, ativo=True).distinct().count()
-            
-            # --- FERRAMENTAS (Somente Ativas) ---
-            # Exclui as que estão com estado 'INATIVA'
-            queryset_ferramentas = Ferramenta.objects.filter(deposito__filial__in=filiais).exclude(estado='INATIVA')
-            total_ferramentas = queryset_ferramentas.count()
-            
-            ferramentas_disponiveis = queryset_ferramentas.filter(estado='DISPONIVEL').count()
-            ferramentas_emprestadas = queryset_ferramentas.filter(estado='EMPRESTADA').count()
-            ferramentas_manutencao = queryset_ferramentas.filter(estado='EM_MANUTENCAO').count()
-            
-            # --- EMPRÉSTIMOS ---
-            # Conta funcionários ATIVOS que têm empréstimos ATIVOS
-            funcs_com_emprestimo = Emprestimo.objects.filter(
-                ferramenta__deposito__filial__in=filiais, 
-                ativo=True,
-                funcionario__ativo=True # Só conta se o funcionário ainda é ativo
-            ).values('funcionario').distinct().count()
-
+            filiais_permitidas = user.filiais.all()
         else:
-            # ADMIN / MAXIMO
-            
-            # Somente Funcionários Ativos
-            total_funcionarios = Funcionario.objects.filter(ativo=True).count()
-            
-            # Somente Ferramentas Ativas (Não INATIVAS)
-            queryset_ferramentas = Ferramenta.objects.exclude(estado='INATIVA')
-            total_ferramentas = queryset_ferramentas.count()
-            
-            ferramentas_disponiveis = queryset_ferramentas.filter(estado='DISPONIVEL').count()
-            ferramentas_emprestadas = queryset_ferramentas.filter(estado='EMPRESTADA').count()
-            ferramentas_manutencao = queryset_ferramentas.filter(estado='EM_MANUTENCAO').count()
-            
-            # Funcionários Ativos com Empréstimo Ativo
-            funcs_com_emprestimo = Emprestimo.objects.filter(
-                ativo=True,
-                funcionario__ativo=True
-            ).values('funcionario').distinct().count()
+            # Admin/Maximo vê todas
+            filiais_permitidas = Filial.objects.filter(ativo=True)
 
-        # Calcula o resto
+        # Se o usuário escolheu uma filial específica
+        if filial_id_param:
+            # Garante que o coordenador não acesse filial alheia
+            if user.tipo == 'COORDENADOR' and not filiais_permitidas.filter(id=filial_id_param).exists():
+                return Response({"error": "Acesso negado a esta filial."}, status=status.HTTP_403_FORBIDDEN)
+            
+            # Restringe o escopo para UMA única filial
+            escopo_filiais = Filial.objects.filter(id=filial_id_param)
+        else:
+            # Usa todas as permitidas (Visão Geral)
+            escopo_filiais = filiais_permitidas
+
+        # --- CONSULTAS FILTRADAS PELO ESCOPO ---
+
+        # 1. Total Funcionários (Ativos e vinculados às filiais do escopo)
+        total_funcionarios = Funcionario.objects.filter(
+            filiais__in=escopo_filiais, 
+            ativo=True
+        ).distinct().count()
+
+        # 2. Total Ferramentas (Ativas e nos depósitos das filiais do escopo)
+        queryset_ferramentas = Ferramenta.objects.filter(
+            deposito__filial__in=escopo_filiais
+        ).exclude(estado='INATIVA')
+        
+        total_ferramentas = queryset_ferramentas.count()
+
+        # 3. Status das Ferramentas
+        ferramentas_disponiveis = queryset_ferramentas.filter(estado='DISPONIVEL').count()
+        ferramentas_emprestadas = queryset_ferramentas.filter(estado='EMPRESTADA').count()
+        ferramentas_manutencao = queryset_ferramentas.filter(estado='EM_MANUTENCAO').count()
+
+        # 4. Funcionários com Empréstimo (A LÓGICA CRÍTICA)
+        # Conta quantos funcionários têm empréstimo ativo DE UMA FERRAMENTA DESSAS FILIAIS
+        funcs_com_emprestimo = Emprestimo.objects.filter(
+            ferramenta__deposito__filial__in=escopo_filiais,
+            ativo=True,
+            funcionario__ativo=True
+        ).values('funcionario').distinct().count()
+
+        # 5. Cálculo Matemático
         funcs_sem_emprestimo = total_funcionarios - funcs_com_emprestimo
         if funcs_sem_emprestimo < 0: funcs_sem_emprestimo = 0
 
@@ -85,19 +94,30 @@ class DashboardView(APIView):
         
         return Response(data)
 
+# --- AUTENTICAÇÃO ---
+
 class CustomTokenObtainPairView(TokenObtainPairView):
+    """ View de Login customizada para usar nosso Serializer com payload extra """
     serializer_class = CustomTokenObtainPairSerializer
+
+
+# --- VIEWSETS (CRUD) ---
 
 class UsuarioViewSet(viewsets.ModelViewSet):
     queryset = Usuario.objects.all().order_by('nome')
     serializer_class = UsuarioSerializer
+    # Permissões complexas (ver permissions.py): 
+    # - Apenas Máximo lista tudo. 
+    # - Admin gerencia Coordenadores.
     permission_classes = [IsAuthenticated, UsuarioPermissions]
+    
+    # Search Fields para busca global
     search_fields = ['nome', 'cpf', 'tipo', 'filiais__nome', 'filiais__cidade']
 
     def get_queryset(self):
         queryset = Usuario.objects.all().order_by('nome')
 
-        # Filtros Específicos
+        # Filtros Específicos da Barra de Pesquisa
         search_field = self.request.query_params.get('search_field')
         search_value = self.request.query_params.get('search_value')
 
@@ -113,7 +133,7 @@ class UsuarioViewSet(viewsets.ModelViewSet):
                 if search_field in campos_map:
                     queryset = queryset.filter(**{campos_map[search_field]: search_value})
 
-        # Filtros de Status
+        # Filtros de Status (Ativo/Inativo)
         if self.request.query_params.get('somente_ativos') == 'true':
             queryset = queryset.filter(ativo=True)
         if self.request.query_params.get('somente_inativos') == 'true':
@@ -131,6 +151,7 @@ class FilialViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         
+        # REGRA: Coordenador vê apenas suas próprias filiais
         if user.tipo == 'COORDENADOR':
             queryset = user.filiais.all().order_by('nome')
         else:
@@ -145,11 +166,16 @@ class FilialViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['patch'])
     def desativar(self, request, pk=None):
+        """
+        Action Customizada para Desativar Filial com CASCATA.
+        Verifica pendências antes de permitir.
+        """
         filial = self.get_object()
         
         if request.user.tipo != 'MAXIMO':
             return Response({"error": "Apenas usuários do tipo MÁXIMO podem desativar filiais."}, status=status.HTTP_403_FORBIDDEN)
 
+        # BLOQUEIO: Verifica ferramentas em uso nesta filial
         ferramentas_em_uso = Ferramenta.objects.filter(
             deposito__filial__id=filial.id,
             estado__in=['EMPRESTADA', 'EM_MANUTENCAO']
@@ -165,14 +191,18 @@ class FilialViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        # MODO PREVIEW: Apenas checa se pode desativar, sem executar
         if request.query_params.get('preview') == 'true':
             return Response({"status": "Liberado"}, status=status.HTTP_200_OK)
 
+        # EXECUÇÃO: Desativação em Cascata (Transação Atômica)
         with transaction.atomic():
             filial.ativo = False
             filial.save()
             filial.depositos.update(ativo=False)
+            # Ferramentas disponíveis viram INATIVA
             Ferramenta.objects.filter(deposito__filial=filial).update(estado='INATIVA')
+            # Funcionários são desvinculados
             filial.funcionarios.clear() 
 
         return Response({"status": "Filial e itens associados desativados com sucesso."})
@@ -201,6 +231,7 @@ class DepositoViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['patch'])
     def desativar(self, request, pk=None):
+        """ Desativação de Depósito com verificação de pendências """
         deposito = self.get_object()
         
         if request.user.tipo != 'MAXIMO':
@@ -291,10 +322,8 @@ class FuncionarioViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['patch'])
     def reativar(self, request, pk=None):
         funcionario = self.get_object()
-        
         if funcionario.ativo:
              return Response({"error": "Funcionário já está ativo."}, status=status.HTTP_400_BAD_REQUEST)
-             
         funcionario.ativo = True
         funcionario.save()
         return Response({"status": "Funcionário reativado com sucesso"})
@@ -303,13 +332,16 @@ class FuncionarioViewSet(viewsets.ModelViewSet):
         user = self.request.user
         queryset = Funcionario.objects.all().order_by('nome')
 
+        # REGRA: Coordenador só vê funcionários de suas filiais
         if user.tipo == 'COORDENADOR':
             queryset = queryset.filter(filiais__in=user.filiais.all()).distinct()
 
+        # Filtro de Filial (Dropdown)
         filial_id = self.request.query_params.get('filial')
         if filial_id:
             queryset = queryset.filter(filiais__id=filial_id)
 
+        # Filtros Específicos da Barra de Pesquisa
         search_field = self.request.query_params.get('search_field')
         search_value = self.request.query_params.get('search_value')
 
@@ -323,6 +355,7 @@ class FuncionarioViewSet(viewsets.ModelViewSet):
                 'filial_nome': 'filiais__nome__icontains'
             }
 
+            # Busca por Nulos ("Sem", "Vazio")
             if search_value.lower() in ['sem', 'nenhum', 'null', 'vazio']:
                 if search_field == 'cargo':
                     queryset = queryset.filter(cargo__isnull=True)
@@ -336,6 +369,7 @@ class FuncionarioViewSet(viewsets.ModelViewSet):
                 lookup = campos_map[search_field]
                 queryset = queryset.filter(**{lookup: search_value})
 
+        # Filtros de Status
         if self.request.query_params.get('somente_ativos') == 'true':
             queryset = queryset.filter(ativo=True)
         if self.request.query_params.get('somente_inativos') == 'true':
@@ -344,6 +378,7 @@ class FuncionarioViewSet(viewsets.ModelViewSet):
         return queryset.distinct()
     
     def get_serializer_context(self):
+        # Passa as filiais do coordenador para o serializer filtrar o cadastro
         context = super().get_serializer_context()
         user = self.request.user
         if user.is_authenticated and user.tipo == 'COORDENADOR':
@@ -351,6 +386,7 @@ class FuncionarioViewSet(viewsets.ModelViewSet):
         return context
 
     def get_permissions(self):
+        # Apenas Admin/Máximo pode destruir (hard delete)
         if self.action == 'destroy':
             return [IsAdminOrMaximo()]
         return super().get_permissions()
@@ -360,8 +396,6 @@ class FuncionarioViewSet(viewsets.ModelViewSet):
         if self.request.user.tipo in ['ADMINISTRADOR', 'MAXIMO']:
             methods.append('delete')
         return methods
-    
-
 
 
 class FerramentaViewSet(viewsets.ModelViewSet):
@@ -378,19 +412,16 @@ class FerramentaViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['patch'])
     def reativar(self, request, pk=None):
         ferramenta = self.get_object()
-        
-        # Só reativa se estiver INATIVA
         if ferramenta.estado != Ferramenta.EstadoChoices.INATIVA:
              return Response({"error": "Apenas ferramentas inativas podem ser reativadas."}, status=status.HTTP_400_BAD_REQUEST)
-             
         ferramenta.estado = Ferramenta.EstadoChoices.DISPONIVEL
         ferramenta.save()
-        
         return Response({"status": "Ferramenta reativada com sucesso"})
 
     @action(detail=True, methods=['patch'])
     def desativar(self, request, pk=None):
         ferramenta = self.get_object()
+        # REGRA: Só desativa se estiver Disponível
         if ferramenta.estado != Ferramenta.EstadoChoices.DISPONIVEL:
              return Response({"error": "Apenas ferramentas disponíveis podem ser desativadas."}, status=status.HTTP_400_BAD_REQUEST)
         ferramenta.estado = Ferramenta.EstadoChoices.INATIVA
@@ -412,6 +443,7 @@ class FerramentaViewSet(viewsets.ModelViewSet):
         search_value = self.request.query_params.get('search_value')
 
         if search_field and search_value:
+            # Lógica de Data Coringa (xx/xx/xxxx)
             if search_field == 'data_aquisicao' and '/' in search_value:
                 try:
                     partes = search_value.split('/')
@@ -439,6 +471,7 @@ class FerramentaViewSet(viewsets.ModelViewSet):
                     lookup = campos_map[search_field]
                     queryset = queryset.filter(**{lookup: search_value})
 
+        # Filtros de Status (Estado)
         if self.request.query_params.get('somente_disponiveis_emprestadas_manutencao') == 'true':
             queryset = queryset.exclude(estado='INATIVA')
 
@@ -446,6 +479,7 @@ class FerramentaViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(estado='INATIVA')
 
         return queryset
+
 
 class EmprestimoViewSet(viewsets.ModelViewSet):
     serializer_class = EmprestimoSerializer
@@ -463,14 +497,12 @@ class EmprestimoViewSet(viewsets.ModelViewSet):
         queryset = Emprestimo.objects.all().order_by('-data_emprestimo')
 
         if user.tipo == 'COORDENADOR':
-            # Filtra por filial. Nota: Para inativos antigos sem vínculo, isso pode ocultá-los.
-            # Se precisar ver histórico global da filial, o modelo precisaria guardar o ID da filial.
             queryset = queryset.filter(ferramenta__deposito__filial__in=user.filiais.all())
 
-        # Filtro de URL (usado no bloqueio de edição de funcionário)
+        # Filtro de URL
         func_id = self.request.query_params.get('funcionario')
         if func_id:
-            # Busca pelo ID atual OU pela matrícula histórica (para itens finalizados onde o vínculo foi quebrado)
+            # Busca Híbrida: Pelo ID atual OU Pela matrícula histórica
             try:
                 matricula = Funcionario.objects.get(id=func_id).matricula
                 queryset = queryset.filter(
@@ -480,22 +512,22 @@ class EmprestimoViewSet(viewsets.ModelViewSet):
             except Funcionario.DoesNotExist:
                 pass
 
-        # Filtro de Relatório (usado para buscar histórico de uma ferramenta específica)
+        # Filtro de Relatório
         ferramenta_id = self.request.query_params.get('ferramenta')
         if ferramenta_id:
-            # Busca tanto no relacionamento ativo quanto no histórico de texto
-            # Isso garante que o relatório pegue tudo, mesmo depois de finalizado
-            queryset = queryset.filter(
-                Q(ferramenta__id=ferramenta_id) | 
-                Q(numero_serie_ferramenta_historico=Ferramenta.objects.get(id=ferramenta_id).numero_serie)
-            )
+            try:
+                serial = Ferramenta.objects.get(id=ferramenta_id).numero_serie
+                queryset = queryset.filter(
+                    Q(ferramenta__id=ferramenta_id) | 
+                    Q(numero_serie_ferramenta_historico=serial)
+                )
+            except Ferramenta.DoesNotExist:
+                pass
 
-        # Filtros da Barra de Pesquisa
         search_field = self.request.query_params.get('search_field')
         search_value = self.request.query_params.get('search_value')
 
         if search_field and search_value:
-            # 1. DATAS CORINGA
             if search_field in ['data_emprestimo', 'data_devolucao'] and '/' in search_value:
                 try:
                     partes = search_value.split('/')
@@ -508,13 +540,12 @@ class EmprestimoViewSet(viewsets.ModelViewSet):
                         queryset = queryset.filter(**filtro)
                 except ValueError: pass
 
-            # 2. NULOS
             elif search_value.lower() in ['sem', 'nenhum', 'null', 'vazio', 'em aberto', 'aberto']:
                 if search_field == 'data_devolucao':
                     queryset = queryset.filter(data_devolucao__isnull=True)
             
-            # 3. TEXTO E HISTÓRICO (Busca Híbrida)
             else:
+                # Busca Híbrida (Texto e Histórico)
                 if search_field == 'ferramenta': 
                     queryset = queryset.filter(
                         Q(ferramenta__nome__icontains=search_value) | 
@@ -543,10 +574,9 @@ class EmprestimoViewSet(viewsets.ModelViewSet):
                     if search_field in campos_map:
                         queryset = queryset.filter(**{campos_map[search_field]: search_value})
 
-        # --- FILTRO DE ATIVO/INATIVO (FINAL) ---
+        # --- FILTRO DE ATIVO/INATIVO ---
         ativo_param = self.request.query_params.get('ativo')
         if ativo_param is not None:
-            # Converte string 'true'/'True' para booleano
             is_active = ativo_param.lower() in ['true', '1', 't']
             queryset = queryset.filter(ativo=is_active)
             
@@ -582,7 +612,6 @@ class ManutencaoViewSet(viewsets.ModelViewSet):
         ferramenta_id = self.request.query_params.get('ferramenta')
         if ferramenta_id:
             try:
-                # Busca pelo ID atual ou pelo Serial no histórico
                 serial = Ferramenta.objects.get(id=ferramenta_id).numero_serie
                 queryset = queryset.filter(
                     Q(ferramenta__id=ferramenta_id) | 
@@ -591,12 +620,10 @@ class ManutencaoViewSet(viewsets.ModelViewSet):
             except Ferramenta.DoesNotExist:
                 pass
 
-        # Filtros de Busca
         search_field = self.request.query_params.get('search_field')
         search_value = self.request.query_params.get('search_value')
 
         if search_field and search_value:
-            # 1. DATAS CORINGA
             if search_field in ['data_inicio', 'data_fim'] and '/' in search_value:
                 try:
                     partes = search_value.split('/')
@@ -609,11 +636,9 @@ class ManutencaoViewSet(viewsets.ModelViewSet):
                         queryset = queryset.filter(**filtro)
                 except ValueError: pass
 
-            # 2. TIPO
             elif search_field == 'tipo':
                 queryset = queryset.filter(tipo__iexact=search_value)
 
-            # 3. TEXTO E HISTÓRICO
             else:
                 if search_field == 'ferramenta':
                     queryset = queryset.filter(
@@ -633,7 +658,7 @@ class ManutencaoViewSet(viewsets.ModelViewSet):
                     if search_field in campos_map:
                         queryset = queryset.filter(**{campos_map[search_field]: search_value})
 
-        # --- FILTRO DE ATIVO/INATIVO (FINAL) ---
+        # --- FILTRO DE ATIVO/INATIVO ---
         ativo_param = self.request.query_params.get('ativo')
         if ativo_param is not None:
             is_active = ativo_param.lower() in ['true', '1', 't']

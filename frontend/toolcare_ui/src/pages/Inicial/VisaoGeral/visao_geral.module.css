@@ -6,6 +6,7 @@
     align-items: center;
     padding: 4rem;
     overflow-y: auto; /* Permite scroll se a tela for pequena */
+    padding-top: 4rem;
 }
 
 .loading {
@@ -110,4 +111,13 @@
     font-size: 1.6rem;
     color: #ddd;
     line-height: 1.2;
+}
+
+.filterBar {
+    width: 100%;
+    display: flex;
+    justify-content: flex-end; /* Fica no canto direito ou esquerdo, como preferir */
+    padding-right: 10%; /* Alinhamento visual */
+    margin-bottom: 4rem; /* Espaço antes dos gráficos */
+    z-index: 10;
 }
