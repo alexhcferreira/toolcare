@@ -163,6 +163,8 @@ const ModalUsuario = ({ usuario, onClose, onUpdate }) => {
         }
     };
 
+    const isCpfLocked = user.tipo === 'ADMINISTRADOR' && (usuario.tipo === 'ADMINISTRADOR' || usuario.tipo === 'MAXIMO');
+
     return (
         <div className={styles.overlay} onClick={onClose}>
             {showEditado && <EditadoComponent />}
@@ -209,10 +211,17 @@ const ModalUsuario = ({ usuario, onClose, onUpdate }) => {
                     <div className={styles.infoGroup}>
                         <label>CPF</label>
                         {isEditing ? (
-                            <>
-                                <input className={styles.input} name="cpf" value={editData.cpf} onChange={handleChange} maxLength={14} />
-                                {msgErro && <span style={{color:'#ff4d4d'}}>{msgErro}</span>}
-                            </>
+                            isCpfLocked ? (
+                                // Se bloqueado, mostra apenas texto (ou input disabled)
+                                <div style={{ color: 'white', fontSize: '1.5rem' }}>
+                            {usuario.cpf}
+                            </div>
+                            ) : (
+                                <>
+                                    <input className={styles.input} name="cpf" value={editData.cpf} onChange={handleChange} maxLength={14} />
+                                    {msgErro && <span style={{color:'#ff4d4d'}}>{msgErro}</span>}
+                                </>
+                            )
                         ) : (
                             <p className={styles.textValue}>{usuario.cpf}</p>
                         )}

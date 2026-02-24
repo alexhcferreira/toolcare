@@ -4,22 +4,28 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { AuthContext } from '../../context/AuthContext';
 
 // Imports de ícones (PODE USAR OS MESMOS, DEPOIS VOCÊ TROCA)
-import emprestimosIcon from '../../assets/icones/emprestimos.png';
-import ferramentasIcon from '../../assets/icones/ferramentas.png';
-import funcionariosIcon from '../../assets/icones/funcionarios.png';
-import manutencoesIcon from '../../assets/icones/manutencoes.png';
-import cargosIcon from '../../assets/icones/cargos.png';
-import setoresIcon from '../../assets/icones/setores.png';
-import logoutIcon from '../../assets/icones/logout.png';
-import ativosIcon from '../../assets/icones/inativos.png'; // Usando o mesmo por enquanto
-
-// Ícones Laranja (para o hover/selected)
+import emprestimosIcon from '../../assets/icones/emprestimos_preto.png';
+import ferramentasIcon from '../../assets/icones/ferramentas_preto.png';
+import funcionariosIcon from '../../assets/icones/funcionarios_preto.png';
+import manutencoesIcon from '../../assets/icones/manutencoes_preto.png';
+import cargosIcon from '../../assets/icones/cargos_preto.png';
+import setoresIcon from '../../assets/icones/setores_preto.png';
+import logoutIcon from '../../assets/icones/logout_preto.png';
 import emprestimosIconLaranja from '../../assets/icones/emprestimos_laranja.png';
 import ferramentasIconLaranja from '../../assets/icones/ferramentas_laranja.png';
 import funcionariosIconLaranja from '../../assets/icones/funcionarios_laranja.png';
 import manutencoesIconLaranja from '../../assets/icones/manutencoes_laranja.png';
 import cargosIconLaranja from '../../assets/icones/cargos_laranja.png';
 import setoresIconLaranja from '../../assets/icones/setores_laranja.png';
+import filiaisIcon from '../../assets/icones/filiais_preto.png';
+import filiaisIconLaranja from '../../assets/icones/filiais_laranja.png';
+import depositosIcon from '../../assets/icones/depositos_preto.png';
+import depositosIconLaranja from '../../assets/icones/depositos_laranja.png';
+import usuariosIcon from '../../assets/icones/usuarios_preto.png';
+import usuariosIconLaranja from '../../assets/icones/usuarios_laranja.png';
+import inativosIcon from '../../assets/icones/inativos.png';
+
+import ativosIcon from '../../assets/icones/ativos_preto.png'; // Usando o mesmo por enquanto
 
 const MenuInativos = () => {
     const location = useLocation();
@@ -99,7 +105,7 @@ const MenuInativos = () => {
                     
                     <Link to="/depositos_inativos">
                         <li id="depositos" className={`${styles.div_navbar} ${selectedItem === 'depositos' ? styles.selected : ''}`} onClick={() => handleItemClick('depositos')}>
-                            <img src={getIconSrc('depositos', cargosIcon, cargosIconLaranja)} className={`${styles.item} ${styles.quadradinho}`} alt="Ícone" />
+                            <img src={getIconSrc('depositos', depositosIcon, depositosIconLaranja)} className={`${styles.item} ${styles.quadradinho}`} alt="Ícone" />
                             <h4 className={`${styles.item} ${styles.texto_menu} ${selectedItem === 'depositos' ? styles.selected : ''}`}>DEPÓSITOS</h4>
                         </li>
                     </Link>
@@ -123,14 +129,14 @@ const MenuInativos = () => {
                         <>
                             <Link to="/filiais_inativas">
                                 <li id="filiais" className={`${styles.div_navbar} ${selectedItem === 'filiais' ? styles.selected : ''}`} onClick={() => handleItemClick('filiais')}>
-                                    <img src={getIconSrc('filiais', cargosIcon, cargosIconLaranja)} className={`${styles.item} ${styles.quadradinho}`} alt="Ícone" />
+                                    <img src={getIconSrc('filiais', filiaisIcon, filiaisIconLaranja)} className={`${styles.item} ${styles.quadradinho}`} alt="Ícone" />
                                     <h4 className={`${styles.item} ${styles.texto_menu} ${selectedItem === 'filiais' ? styles.selected : ''}`}>FILIAIS</h4>
                                 </li>
                             </Link>
 
                             <Link to="/usuarios_inativos">
                                 <li id="usuarios" className={`${styles.div_navbar} ${selectedItem === 'usuarios' ? styles.selected : ''}`} onClick={() => handleItemClick('usuarios')}>
-                                    <img src={getIconSrc('usuarios', cargosIcon, cargosIconLaranja)} className={`${styles.item} ${styles.quadradinho}`} alt="Ícone" />
+                                    <img src={getIconSrc('usuarios', usuariosIcon, usuariosIconLaranja)} className={`${styles.item} ${styles.quadradinho}`} alt="Ícone" />
                                     <h4 className={`${styles.item} ${styles.texto_menu} ${selectedItem === 'usuarios' ? styles.selected : ''}`}>USUÁRIOS</h4>
                                 </li>
                             </Link>

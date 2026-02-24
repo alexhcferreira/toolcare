@@ -19,7 +19,14 @@ import funcionariosIconLaranja from '../../assets/icones/funcionarios_laranja.pn
 import manutencoesIconLaranja from '../../assets/icones/manutencoes_laranja.png';
 import cargosIconLaranja from '../../assets/icones/cargos_laranja.png';
 import setoresIconLaranja from '../../assets/icones/setores_laranja.png';
+import filiaisIcon from '../../assets/icones/filiais.png';
+import filiaisIconLaranja from '../../assets/icones/filiais_laranja.png';
+import depositosIcon from '../../assets/icones/depositos.png';
+import depositosIconLaranja from '../../assets/icones/depositos_laranja.png';
+import usuariosIcon from '../../assets/icones/usuarios.png';
+import usuariosIconLaranja from '../../assets/icones/usuarios_laranja.png';
 import inativosIcon from '../../assets/icones/inativos.png';
+
 // ... etc ...
 
 export const MenuComponent = () => {
@@ -118,7 +125,7 @@ export const MenuComponent = () => {
                     {isAdminOrMaximo && (
                         <Link to="/filiais">
                             <li id="filiais" className={`${styles.div_navbar} ${selectedItem === 'filiais' ? styles.selected : ''}`} onClick={() => handleItemClick('filiais')}>
-                                <img src={getIconSrc('filiais', cargosIcon, cargosIconLaranja)} className={`${styles.item} ${styles.quadradinho}`} alt="Ícone" />
+                                <img src={getIconSrc('filiais', filiaisIcon, filiaisIconLaranja)} className={`${styles.item} ${styles.quadradinho}`} alt="Ícone" />
                                 <h4 className={`${styles.item} ${styles.texto_menu} ${selectedItem === 'filiais' ? styles.selected : ''}`}>FILIAIS</h4>
                             </li>
                         </Link>
@@ -128,7 +135,7 @@ export const MenuComponent = () => {
                         Vou assumir que eles veem depósitos, mas não filiais, conforme seu pedido. */}
                     <Link to="/depositos">
                         <li id="depositos" className={`${styles.div_navbar} ${selectedItem === 'depositos' ? styles.selected : ''}`} onClick={() => handleItemClick('depositos')}>
-                            <img src={getIconSrc('depositos', cargosIcon, cargosIconLaranja)} className={`${styles.item} ${styles.quadradinho}`} alt="Ícone" />
+                            <img src={getIconSrc('depositos', depositosIcon, depositosIconLaranja)} className={`${styles.item} ${styles.quadradinho}`} alt="Ícone" />
                             <h4 className={`${styles.item} ${styles.texto_menu} ${selectedItem === 'depositos' ? styles.selected : ''}`}>DEPÓSITOS</h4>
                         </li>
                     </Link>
@@ -151,7 +158,7 @@ export const MenuComponent = () => {
                     {isAdminOrMaximo && (
                         <Link to="/usuarios">
                             <li id="usuarios" className={`${styles.div_navbar} ${selectedItem === 'usuarios' ? styles.selected : ''}`} onClick={() => handleItemClick('usuarios')}>
-                                <img src={getIconSrc('usuarios', cargosIcon, cargosIconLaranja)} className={`${styles.item} ${styles.quadradinho}`} alt="Ícone" />
+                                <img src={getIconSrc('usuarios', usuariosIcon, usuariosIconLaranja)} className={`${styles.item} ${styles.quadradinho}`} alt="Ícone" />
                                 <h4 className={`${styles.item} ${styles.texto_menu} ${selectedItem === 'usuarios' ? styles.selected : ''}`}>USUÁRIOS</h4>
                             </li>
                         </Link>

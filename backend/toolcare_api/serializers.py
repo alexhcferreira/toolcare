@@ -2,6 +2,7 @@ from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework.validators import UniqueValidator
 from .models import Usuario, Filial, Deposito, Setor, Cargo, Funcionario, Ferramenta, Emprestimo, Manutencao
+from rest_framework.exceptions import AuthenticationFailed
 import datetime
 
 # --- SERIALIZERS DE ESTRUTURA ---
@@ -17,6 +18,7 @@ class FilialSerializer(serializers.ModelSerializer):
         # REGRA: Na criação, a filial nasce Ativa por padrão e o usuário não pode mudar isso.
         if not self.instance:
             self.fields['ativo'].read_only = True
+
 
 class UsuarioSerializer(serializers.ModelSerializer):
     # Campo aninhado para exibir os dados completos das filiais na leitura
@@ -49,6 +51,16 @@ class UsuarioSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Este CPF já está em uso")
         return value
 
+    def validate_filiais(self, filiais):
+        """
+        REGRA DE INTEGRIDADE: 
+        Impede associar um usuário a uma filial inativa.
+        """
+        for filial in filiais:
+            if not filial.ativo:
+                raise serializers.ValidationError(f"A filial '{filial.nome}' está inativa e não pode ser vinculada a um usuário.")
+        return filiais
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         request_user = self.context['request'].user
@@ -65,7 +77,7 @@ class UsuarioSerializer(serializers.ModelSerializer):
                         self.fields[field_name].read_only = True
             
             # REGRA: Admin editando Coordenador -> Não pode mudar o CPF nem o TIPO do coordenador
-            elif request_user.tipo == 'ADMINISTRADOR' and self.instance.tipo == 'COORDENADOR':
+            elif request_user.tipo == 'ADMINISTRADOR' and self.instance and hasattr(self.instance, 'tipo') and self.instance.tipo == 'COORDENADOR':
                 self.fields['cpf'].read_only = True
                 self.fields['tipo'].read_only = True
 
@@ -102,10 +114,21 @@ class DepositoSerializer(serializers.ModelSerializer):
         model = Deposito
         fields = ['id', 'nome', 'filial', 'filial_nome', 'ativo']
         read_only_fields = ['id']
+        
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if not self.instance:
             self.fields['ativo'].read_only = True
+            
+    def validate_filial(self, filial):
+        """
+        REGRA DE INTEGRIDADE:
+        Impede criar ou mover um depósito para uma filial inativa.
+        """
+        if not filial.ativo:
+            raise serializers.ValidationError(f"Não é possível vincular este depósito a uma filial inativa ({filial.nome}).")
+        return filial
+
 
 class SetorSerializer(serializers.ModelSerializer):
     class Meta: 
@@ -125,6 +148,7 @@ class SetorSerializer(serializers.ModelSerializer):
         if self.instance: query = query.exclude(pk=self.instance.pk) # Exclui o próprio se for edição
         if query.exists(): raise serializers.ValidationError("Já existe um setor com este nome.")
         return value
+
 
 class CargoSerializer(serializers.ModelSerializer):
     class Meta: model = Cargo; fields = ['id', 'nome_cargo', 'descricao_cargo', 'ativo']; read_only_fields = ['id']
@@ -180,14 +204,20 @@ class FuncionarioSerializer(serializers.ModelSerializer):
         if not filiais_selecionadas:
             raise serializers.ValidationError("O funcionário deve ser associado a pelo menos uma filial.")
         
-        # REGRA: Coordenador só pode associar funcionário a filiais que ele gerencia
         user = self.context['request'].user
-        if user.tipo == 'COORDENADOR':
-            user_filiais_ids = set(user.filiais.values_list('id', flat=True))
-            for filial in filiais_selecionadas:
-                if filial.id not in user_filiais_ids:
-                    raise serializers.ValidationError(f"Coordenadores só podem associar funcionários às suas próprias filiais. A filial '{filial.nome}' é inválida.")
+        user_filiais_ids = set(user.filiais.values_list('id', flat=True)) if user.tipo == 'COORDENADOR' else set()
+
+        for filial in filiais_selecionadas:
+            # REGRA DE INTEGRIDADE: Bloquear filial inativa
+            if not filial.ativo:
+                raise serializers.ValidationError(f"A filial '{filial.nome}' está inativa. Não é possível vincular funcionários a ela.")
+
+            # REGRA: Coordenador só pode associar funcionário a filiais que ele gerencia
+            if user.tipo == 'COORDENADOR' and filial.id not in user_filiais_ids:
+                raise serializers.ValidationError(f"Coordenadores só podem associar funcionários às suas próprias filiais. A filial '{filial.nome}' é inválida.")
+                
         return filiais_selecionadas
+
 
 class FerramentaSerializer(serializers.ModelSerializer):
     estado_display = serializers.CharField(source='get_estado_display', read_only=True)
@@ -213,12 +243,20 @@ class FerramentaSerializer(serializers.ModelSerializer):
         return value
 
     def validate_deposito(self, deposito_selecionado):
+        # REGRA DE INTEGRIDADE: Bloquear depósito ou filial inativos
+        if not deposito_selecionado.ativo:
+            raise serializers.ValidationError(f"O depósito '{deposito_selecionado.nome}' está inativo.")
+            
+        if not deposito_selecionado.filial.ativo:
+            raise serializers.ValidationError(f"A filial '{deposito_selecionado.filial.nome}', à qual este depósito pertence, está inativa.")
+
         # REGRA: Validação extra de segurança para Coordenador
         user = self.context['request'].user
         if user.tipo == 'COORDENADOR':
             user_filiais = user.filiais.all()
             if deposito_selecionado.filial not in user_filiais:
                 raise serializers.ValidationError("Coordenadores só podem cadastrar ferramentas em depósitos de suas próprias filiais.")
+                
         return deposito_selecionado
 
 
@@ -309,12 +347,26 @@ class ManutencaoSerializer(serializers.ModelSerializer):
         if not self.instance and ferramenta.estado != Ferramenta.EstadoChoices.DISPONIVEL:
             raise serializers.ValidationError(f"A ferramenta '{ferramenta.nome}' não está disponível para manutenção. Estado atual: {ferramenta.get_estado_display()}.")
         return ferramenta
-    
+
+
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     """
     Serializer de Login:
-    Adiciona 'tipo' e 'nome' ao payload do Token JWT para o frontend saber quem logou.
+    Valida se o usuário está ativo antes de permitir o login e 
+    adiciona 'tipo' e 'nome' ao payload do Token JWT.
     """
+    
+    def validate(self, attrs):
+        # 1. Deixa o SimpleJWT fazer a parte dele (checar se o CPF existe e se a senha está correta)
+        data = super().validate(attrs)
+
+        # 2. Se a senha estiver certa, ele chega aqui. Agora checamos a nossa regra de negócio:
+        if not self.user.ativo:
+            raise AuthenticationFailed('Conta desativada. Entre em contato com o administrador.', code='usuario_inativo')
+
+        # 3. Se estiver tudo OK (senha certa e usuário ativo), retorna os dados (token)
+        return data
+
     @classmethod
     def get_token(cls, user):
         token = super().get_token(user)

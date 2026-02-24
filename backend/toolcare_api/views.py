@@ -499,6 +499,11 @@ class EmprestimoViewSet(viewsets.ModelViewSet):
         if user.tipo == 'COORDENADOR':
             queryset = queryset.filter(ferramenta__deposito__filial__in=user.filiais.all())
 
+        filial_id = self.request.query_params.get('filial')
+        if filial_id:
+            # Filtra empréstimos cuja ferramenta pertence a um depósito daquela filial
+            queryset = queryset.filter(ferramenta__deposito__filial__id=filial_id)
+
         # Filtro de URL
         func_id = self.request.query_params.get('funcionario')
         if func_id:
@@ -607,6 +612,10 @@ class ManutencaoViewSet(viewsets.ModelViewSet):
 
         if user.tipo == 'COORDENADOR':
             queryset = queryset.filter(ferramenta__deposito__filial__in=user.filiais.all())
+
+        filial_id = self.request.query_params.get('filial')
+        if filial_id:
+            queryset = queryset.filter(ferramenta__deposito__filial__id=filial_id)
 
         # Filtro de Relatório
         ferramenta_id = self.request.query_params.get('ferramenta')

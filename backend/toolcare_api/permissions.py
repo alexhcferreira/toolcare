@@ -19,7 +19,7 @@ class UsuarioPermissions(permissions.BasePermission):
     def has_permission(self, request, view):
         
         if view.action == 'list':
-            return request.user.tipo == 'MAXIMO'
+            return request.user.tipo in ['MAXIMO', 'ADMINISTRADOR']
         
         if view.action == 'create' and request.user.tipo == 'COORDENADOR':
             return False
